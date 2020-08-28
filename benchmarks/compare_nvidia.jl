@@ -12,9 +12,9 @@ st_single = NewStencilInstance(st_def, m_step=false)
 st_16bdim =  NewStencilInstance(st_def, m_step=false, bdim=16)
 ## Input Data size Definition
 radius = 4
-nx = 8
-ny = 8
-nz = 8
+nx = 9
+ny = 9
+nz = 9
 dx = 1<<(nx)
 dy = 1<<(ny)
 dz = 1<<(nz)
