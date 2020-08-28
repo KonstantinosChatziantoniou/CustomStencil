@@ -89,9 +89,9 @@ end
 
 
 """
-function NewStencilInstance(varstencil::StencilDefinition...;prev_time_coeff=0, m_step=false)
+function NewStencilInstance(varstencil::StencilDefinition...;prev_time_coeff=0, m_step=false, bdim=32)
     st_sym,max_radius = CombineStencils(varstencil...)
-    fex,uses_vsq,fz,bz = GenStencilKernel(st_sym,max_radius,prev_time_coeff)
+    fex,uses_vsq,fz,bz = GenStencilKernel(st_sym,max_radius,prev_time_coeff, bdim)
     kernel = ConvertToFunction(fex, uses_vsq)
     m_kernel = nothing
     m_rad = false
@@ -111,11 +111,11 @@ function NewStencilInstance(varstencil::StencilDefinition...;prev_time_coeff=0, 
             end
             m_rad = max_radius*m_step
             println(new_sym)
-            fex2,uses_vsq2,m_fz,m_bz = GenStencilKernel(new_sym,m_rad,prev_time_coeff)
+            fex2,uses_vsq2,m_fz,m_bz = GenStencilKernel(new_sym,m_rad,prev_time_coeff, bdim)
             m_kernel = ConvertToFunction(fex2, uses_vsq2)
         end
     end
-    return StencilInstance(varstencil, st_sym, max_radius,fz, bz, kernel, fex, uses_vsq,
+    return StencilInstance(varstencil, st_sym, max_radius,fz, bz, bdim, kernel, fex, uses_vsq,
                         m_step, m_kernel, fex2, m_rad, m_fz, m_bz)
 end
 
@@ -136,8 +136,8 @@ function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=
     # -------------------------------
     #radius = st_inst.max_radius
     data = PadData(pad_radius, org_data)
-    bdimx = 32
-    bdimy = 32
+    bdimx = st_inst.bdim
+    bdimy = st_inst.bdim
     dx = size(data,1)
     dy = size(data,2)
     dev_data = CuArray(data)

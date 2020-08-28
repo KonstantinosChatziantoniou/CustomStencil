@@ -23,6 +23,7 @@ mutable struct StencilInstance
     max_radius::Int
     front_z_max::Int
     behind_z_max::Int
+    bdim::Int
     #syms::Tuple{Symbol,3}
     #data::Array{Float32,3}
     #coefs::Array{Float32,N} where N
