@@ -1,6 +1,6 @@
 include("../../module/CustomStencil.jl")
-include("../misc.jl")
-include("../cpu_stencils.jl")
+include("../../misc/misc.jl")
+include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 2
 # first deriv  4 acccuracy
 coefs = [0;2/3;-1/12]

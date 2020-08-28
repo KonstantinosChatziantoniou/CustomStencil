@@ -1,6 +1,6 @@
 include("../../module/CustomStencil.jl")
-include("../misc.jl")
-include("../cpu_stencils.jl")
+include("../../misc/misc.jl")
+include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 2
 coefs = Float64.([0.25; 0.125; 0.06])
 dense_stencil = @def_stencil_expression(
