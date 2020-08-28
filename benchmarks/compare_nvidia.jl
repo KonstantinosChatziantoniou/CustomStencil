@@ -9,7 +9,7 @@ star_stencil = @def_stencil_expression c[0]D[x,y,z] + @sum(i, 1, 4, c[i]*(
 st_def = CreateStencilDefinition(star_stencil, coefs)
 st_inst = NewStencilInstance(st_def, m_step=2)
 st_single = NewStencilInstance(st_def, m_step=false)
-
+st_16bdim =  NewStencilInstance(st_def, m_step=false, bdim=16)
 ## Input Data size Definition
 radius = 4
 nx = 8
@@ -25,9 +25,11 @@ t_steps = 4
 ## GPU Implementation
 gpu_out = ApplyStencil(st_inst, data, t_steps)
 gpu_out = ApplyStencil(st_single, data, t_steps)
+gpu_out = ApplyStencil(st_16bdim, data, t_steps)
 
 CUDA.cuProfilerStart()
 gpu_out = ApplyStencil(st_inst, data, t_steps)
 gpu_out = ApplyStencil(st_single, data, t_steps)
+gpu_out = ApplyStencil(st_16bdim, data, t_steps)
 
 exit()
