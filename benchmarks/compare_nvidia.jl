@@ -7,7 +7,7 @@ star_stencil = @def_stencil_expression c[0]D[x,y,z] + @sum(i, 1, 4, c[i]*(
             D[x+i,y,z] + D[x,y+i,z] + D[x,y,z+i] +
             D[x-i,y,z] + D[x,y-i,z] + D[x,y,z-i]))
 st_def = CreateStencilDefinition(star_stencil, coefs)
-st_inst = NewStencilInstance(st_def, m_step=2)  #don't combine time steps
+st_inst = NewStencilInstance(st_def, m_step=2)
 st_single = NewStencilInstance(st_def, m_step=false)
 
 ## Input Data size Definition
