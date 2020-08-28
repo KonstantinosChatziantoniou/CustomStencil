@@ -1,7 +1,16 @@
 using SymEngine
+
+
 function sabs(a)
     return abs.(a)
 end
+
+"""
+    sum(i::Symbol,s::Integer ,e::Integer, expr::Expr)
+
+Expands the expression `expr` by replacing the symol `i`
+with the Integers between `s` and `e`
+"""
 macro sum(i::Symbol,s::Integer ,e::Integer, expr::Expr)
     expr = eval_macro(expr, Symbol("@sum"))
     q = []
@@ -13,12 +22,22 @@ macro sum(i::Symbol,s::Integer ,e::Integer, expr::Expr)
     return Meta.quot(r)
 end
 
+"""
+    function replace_symbol(i::Symbol, v::Integer, expr::Expr)
+
+Replaces the symbol with the number v
+"""
 function replace_symbol(i::Symbol, v::Integer, expr::Expr)
     temp = copy(expr)
     replace_symbol!(i, v, temp)
     return temp
 end
 
+"""
+    function replace_symbol!(i::Symbol, v::Integer, expr::Expr)
+
+Used by [`replace_symbol`](@ref).
+"""
 function replace_symbol!(i::Symbol, v::Integer, expr::Expr)
     #println(typeof(expr))
     for (j,a) in enumerate(expr.args)
@@ -30,13 +49,26 @@ function replace_symbol!(i::Symbol, v::Integer, expr::Expr)
     end
     return  expr
 end
+"""
+    function eval_macro(expr::Expr, mc::Vararg{Symbol})
 
+Recursively searches the given macro(s) in a quoted block
+and replaces it with the result of its evaluation.
+
+!!! Use this, multiple times for each macro if the order of their evaluation
+matters.
+"""
 function eval_macro(expr::Expr, mc::Vararg{Symbol})
     temp = copy(expr)
     eval_macro!(temp, mc...)
     return temp
 end
 
+"""
+    function eval_macro!(expr::Any, mc::Vararg{Symbol})
+
+Inplace function used by [`eval_macro`](@ref)
+"""
 function eval_macro!(expr::Any, mc::Vararg{Symbol})
     if !(expr isa Expr)
         return
@@ -57,6 +89,16 @@ function eval_macro!(expr::Any, mc::Vararg{Symbol})
     end
     return expr
 end
+
+"""
+    function eval_func!(expr::Any, mc::Vararg{Symbol})
+
+Recursively searches the given function(s) in a quoted block
+and replaces it inplace with the result of its evaluation.
+
+!!! Use this, multiple times for each function if the order of their evaluation
+matters.
+"""
 function eval_func!(expr::Any, mc::Vararg{Symbol})
     if !(expr isa Expr)
         return expr
@@ -83,6 +125,12 @@ function eval_func!(expr::Any, mc::Vararg{Symbol})
     return expr
 end
 
+"""
+    function minmax_const(expr::Expr)
+
+Recursively searches a quoted block, for the indexing expression (:ref)
+and keeps track of the max/min values of indices offsets.
+"""
 function minmax_const(expr::Expr)
     minval = 100
     maxval = -100
@@ -120,6 +168,14 @@ function minmax_const(expr::Expr)
     return rec_minmax(expr, minval, maxval, false)
 end
 
+
+"""
+    fix_indices(expr::Expr, offset::Integer)
+
+Changes the indices of arrays (:ref) applying an offset
+to transform them from zero centerd with positive and negative
+indexing to one-based indexing.
+"""
 function fix_indices(expr::Expr, offset::Integer)
     ex = copy(expr)
     function fix!(expr, offset, inref)
