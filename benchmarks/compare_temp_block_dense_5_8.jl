@@ -12,7 +12,7 @@ st_def = CreateStencilDefinition(star_stencil, coefs)
 st_inst1 = NewStencilInstance(st_def, m_step=5, bdim=16)
 st_inst2 = NewStencilInstance(st_def, m_step=6, bdim=16)
 st_inst3 = NewStencilInstance(st_def, m_step=7, bdim=16)
-st_inst4 = NewStencilInstance(st_def, m_step=8, bdim=16)
+#st_inst4 = NewStencilInstance(st_def, m_step=8, bdim=16)
 
 ## Input Data size Definition
 radius = 4
@@ -30,12 +30,12 @@ t_steps = 56
 gpu_out = ApplyStencil(st_inst1, data, t_steps)
 gpu_out = ApplyStencil(st_inst2, data, t_steps)
 gpu_out = ApplyStencil(st_inst3, data, t_steps)
-gpu_out = ApplyStencil(st_inst4, data, t_steps)
+#gpu_out = ApplyStencil(st_inst4, data, t_steps)
 
 CUDA.cuProfilerStart()
 gpu_out = ApplyStencil(st_inst1, data, t_steps)
 gpu_out = ApplyStencil(st_inst2, data, t_steps)
 gpu_out = ApplyStencil(st_inst3, data, t_steps)
-gpu_out = ApplyStencil(st_inst4, data, t_steps)
+#gpu_out = ApplyStencil(st_inst4, data, t_steps)
 
 exit()
