@@ -9,8 +9,8 @@ star_stencil = @def_stencil_expression c[0]D[x,y,z] + @sum(i, 1,4, c[i]*(
 st_def = CreateStencilDefinition(star_stencil, coefs)
 st_inst1 = NewStencilInstance(st_def, m_step=false)
 st_inst2 = NewStencilInstance(st_def, m_step=2)
-st_inst3 = NewStencilInstance(st_def, m_step=3)
-st_inst4 = NewStencilInstance(st_def, m_step=4)
+st_inst3 = NewStencilInstance(st_def, m_step=3, bdim=16)
+st_inst4 = NewStencilInstance(st_def, m_step=4, bdim=16)
 
 ## Input Data size Definition
 radius = 4
