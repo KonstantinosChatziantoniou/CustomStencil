@@ -253,18 +253,57 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
 
     Doff = [[i,j,k] for i = -radius:radius, j=-radius:radius, k=-radius:radius]
     q = Expr(:block)
-    ## Determine Calculation for the 2d xy Tile
-    for  k = radius+1,i = 1:size(Dsym,1), j = 1:size(Dsym,2)
-        pos = Doff[i,j,k]
-        sym = Dsym[i,j,k]
+    # ## Determine Calculation for the 2d xy Tile
+    # for  k = radius+1,i = 1:size(Dsym,1), j = 1:size(Dsym,2)
+    #     pos = Doff[i,j,k]
+    #     sym = Dsym[i,j,k]
+    #     if vsq_st.exists
+    #         cf = Float64(coeff(vsq_st.sym_math, sym))
+    #         if cf != 0
+    #             ex = :()
+    #             if cf == 1
+    #                 ex = :(@inbounds vsq_current += tile[txr+$(pos[1]), tyr + $(pos[2])])
+    #             else
+    #                 ex = :(@inbounds vsq_current += Float32($(cf))*tile[txr+$(pos[1]), tyr + $(pos[2])])
+    #             end
+    #             push!(q.args, ex)
+    #         end
+    #     end
+    #     if non_vsq_st.exists
+    #         cf = Float64(coeff(non_vsq_st.sym_math, sym))
+    #         if cf != 0
+    #             ex = :()
+    #             if cf == 1
+    #                 ex = :(@inbounds current += tile[txr+$(pos[1]), tyr + $(pos[2])])
+    #             else
+    #                 ex = :(@inbounds current += Float32($(cf))*tile[txr+$(pos[1]), tyr + $(pos[2])])
+    #             end
+    #             push!(q.args, ex)
+    #         end
+    #     end
+    # end
+
+    ## Determine Calculation for contribution at infront and behind
+    for x = 1:(2*max_radius+1), y = 1:(2*max_radius+1)
+        of = Doff[x,y,1]
+        read_to_temp = :(@inbounds temp = tile[txr+$(of[1]), tyr+$(of[2])])
+        flag_read_temp = true
+
+        # Current
+        pos = Doff[x,y,max_radius+1]
+        sym = Dsym[x,y,max_radius+1]
         if vsq_st.exists
             cf = Float64(coeff(vsq_st.sym_math, sym))
             if cf != 0
+                if flag_read_temp
+                    push!(q.args, read_to_temp)
+                    flag_read_temp = false
+                end
                 ex = :()
                 if cf == 1
-                    ex = :(@inbounds vsq_current += tile[txr+$(pos[1]), tyr + $(pos[2])])
+                    ex = :(vsq_current += temp)
                 else
-                    ex = :(@inbounds vsq_current += Float32($(cf))*tile[txr+$(pos[1]), tyr + $(pos[2])])
+                    ex = :(vsq_current += Float32($(cf))*temp)
                 end
                 push!(q.args, ex)
             end
@@ -272,22 +311,24 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
         if non_vsq_st.exists
             cf = Float64(coeff(non_vsq_st.sym_math, sym))
             if cf != 0
+                if flag_read_temp
+                    push!(q.args, read_to_temp)
+                    flag_read_temp = false
+                end
                 ex = :()
                 if cf == 1
-                    ex = :(@inbounds current += tile[txr+$(pos[1]), tyr + $(pos[2])])
+                    ex = :(current += temp)
                 else
-                    ex = :(@inbounds current += Float32($(cf))*tile[txr+$(pos[1]), tyr + $(pos[2])])
+                    ex = :(current += Float32($(cf))*temp)
                 end
                 push!(q.args, ex)
             end
         end
-    end
 
-    ## Determine Calculation for contribution at infront and behind
-    for x = 1:(2*max_radius+1), y = 1:(2*max_radius+1)
-        of = Doff[x,y,1]
-        read_to_temp = :(@inbounds temp = tile[txr+$(of[1]), tyr+$(of[2])])
-        flag_read_temp = true
+
+
+
+
         for z = 1:max_radius
         ## FRONT
             var = Dsym[x,y,z]
@@ -325,7 +366,7 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
             end
         end
         for z = 1:max_radius
-        ## FRONT
+        ## Behind
             var = Dsym[x,y,2*max_radius + 2 - z]
             off = Doff[x,y,2*max_radius + 2 - z]
             if vsq_st.exists
