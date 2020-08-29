@@ -8,8 +8,8 @@ star_stencil = @def_stencil_expression(
                 @sum(j,-2,2,
                     @sum(k,-2,2, c[max(abs(i),abs(j),abs(k))]*D[x+i,y+j,z+k]))))
 st_def = CreateStencilDefinition(star_stencil, coefs)
-st_inst1 = NewStencilInstance(st_def, m_step=false)
-st_inst2 = NewStencilInstance(st_def, m_step=2)
+st_inst1 = NewStencilInstance(st_def, m_step=false, bdim=16)
+st_inst2 = NewStencilInstance(st_def, m_step=2, bdim=16)
 st_inst3 = NewStencilInstance(st_def, m_step=3, bdim=16)
 st_inst4 = NewStencilInstance(st_def, m_step=4, bdim=16)
 
