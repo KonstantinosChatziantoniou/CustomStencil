@@ -6,6 +6,7 @@ include("kernel_gen.jl")
 include("mgpu.jl")
 
 using TimerOutputs
+using StaticArrays
 timers = Vector{TimerOutput}(undef,0)
 
 

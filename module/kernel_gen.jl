@@ -30,7 +30,7 @@ function GenStencilKernel(st_sym, max_radius,prev_time_coeff, bdim=32)
     v_info, nv_info = GenerateStencil(st_sym, shmem_radius)
     q = CreateInitPart(shmem_radius, bdim, v_info, nv_info)
     l,b1 = CreateLoopPart(shmem_radius, bdim)
-    b2 = CreateCalcsPart(v_info, nv_info, shmem_radius,prev_time_coeff=prev_time_coeff)
+    b2,cinit = CreateCalcsPart(v_info, nv_info, shmem_radius,prev_time_coeff=prev_time_coeff)
     b3 = CreateRotateRegsPart(v_info, nv_info)
     f = CreateFinalStorePart(v_info, nv_info,prev_time_coeff=prev_time_coeff)
     for i in b2.args
@@ -40,6 +40,7 @@ function GenStencilKernel(st_sym, max_radius,prev_time_coeff, bdim=32)
         push!(b1.args, i)
     end
     push!(l.args, b1)
+    push!(q.args, cinit)
     push!(q.args, l)
     for i in f.args
         push!(q.args,i)
@@ -247,6 +248,24 @@ function CreateInitPart(shmem_radius::Integer, bdim::Integer,
 end
 
 function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
+    coeff_arr = Vector{Float32}(undef,0)
+    function check_coeff(c_arr, c)
+        ind = findfirst(x-> x==Float32(c), c_arr)
+        if ind isa Nothing
+            push!(c_arr, Float32(c))
+            ind = length(c_arr)
+        end
+        return :(cfarr[$(ind)])
+
+    end
+    function init_coeff_arr(cf)
+        ex = :(cfarr = $(StaticArrays).SA_F32[])
+        for i in cf
+            push!(ex.args[2].args , i)
+        end
+        return ex
+    end
+
     max_radius = radius
     Dsym = [symbols("w$(i)_$(j)_$(k)") for i = 1:(2*max_radius+1),
                    j = 1:(2*max_radius+1), k=1:(2*max_radius+1)]
@@ -303,7 +322,8 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
                 if cf == 1
                     ex = :(vsq_current += temp)
                 else
-                    ex = :(vsq_current += Float32($(cf))*temp)
+                    csym = check_coeff(coeff_arr, Float32(cf))
+                    ex = :(vsq_current += $(csym)*temp)
                 end
                 push!(q.args, ex)
             end
@@ -319,7 +339,8 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
                 if cf == 1
                     ex = :(current += temp)
                 else
-                    ex = :(current += Float32($(cf))*temp)
+                    csym = check_coeff(coeff_arr, Float32(cf))
+                    ex = :(current += $(csym)*temp)
                 end
                 push!(q.args, ex)
             end
@@ -344,7 +365,8 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
                     if cf == 1
                         push!(q.args, :($(sym) += temp))
                     else
-                        push!(q.args, :($(sym) += Float32($(cf))*temp))
+                        csym = check_coeff(coeff_arr, Float32(cf))
+                        push!(q.args, :($(sym) += $(csym)*temp))
                     end
                 end
             end
@@ -360,7 +382,8 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
                     if cf == 1
                         push!(q.args, :($(sym) += temp))
                     else
-                        push!(q.args, :($(sym) += Float32($(cf))*temp))
+                        csym = check_coeff(coeff_arr, Float32(cf))
+                        push!(q.args, :($(sym) += $(csym)*temp))
                     end
                 end
             end
@@ -380,7 +403,8 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
                     if cf == 1
                         push!(q.args, :($(sym) += temp))
                     else
-                        push!(q.args, :($(sym) += Float32($(cf))*temp))
+                        csym = check_coeff(coeff_arr, Float32(cf))
+                        push!(q.args, :($(sym) += $(csym)*temp))
                     end
                 end
             end
@@ -396,7 +420,8 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
                     if cf == 1
                         push!(q.args, :($(sym) += temp))
                     else
-                        push!(q.args, :($(sym) += Float32($(cf))*temp))
+                        csym = check_coeff(coeff_arr, Float32(cf))
+                        push!(q.args, :($(sym) += $(csym)*temp))
                     end
                 end
             end
@@ -486,7 +511,7 @@ function CreateCalcsPart(vsq_st, non_vsq_st, radius; prev_time_coeff=0)
 
 
     end
-    return linefilter!(q)
+    return linefilter!(q), init_coeff_arr(coeff_arr)
 end
 
 function CreateLoopPart(radius, bdim)
