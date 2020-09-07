@@ -5,8 +5,10 @@ function CreateData(dimx, dimy, dimz; init=0, mid=1, rng=4)
 
     midx = (Int(round(dimx/2 - dimx/rng)):Int(round(dimx/2 + dimx/rng)))
     midy = (Int(round(dimy/2 - dimy/rng)):Int(round(dimy/2 + dimy/rng)))
-    midz = (Int(round(dimz/2 - dimz/rng)):Int(round(dimz/2 + dimz/rng)))
-
+    midz = 1
+    if dimz > 1
+        midz = (Int(round(dimz/2 - dimz/rng)):Int(round(dimz/2 + dimz/rng)))
+    end
     data = fill(Float32(init), (dimx, dimy, dimz))
     data[midx,midy, midz] .= mid
 
