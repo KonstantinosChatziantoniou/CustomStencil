@@ -5,7 +5,9 @@ include("../misc/cpu_stencils.jl")
 coefs = [0.75;0.5]
 star_stencil = @def_stencil_expression c[0]D[x,y,z] + @sum(i, 1,1, c[i]*(
             D[x+i,y,z] + D[x,y+i,z] +
-            D[x-i,y,z] + D[x,y-i,z]))
+            D[x-i,y,z] + D[x,y-i,z] +
+            D[x+i,y+i,z] + D[x+i,y-i,z] +
+            D[x-i,y+i,z] + D[x-i,y-i,z]))
 st_def = CreateStencilDefinition(star_stencil, coefs)
 st_inst1 = NewStencilInstance(st_def, m_step=false)
 st_inst2 = NewStencilInstance(st_def, m_step=2)
