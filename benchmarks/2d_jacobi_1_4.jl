@@ -23,7 +23,7 @@ dz = 1<<(nz)
 
 data = CreateData(dx,dy,dz)
 
-t_steps = 24
+t_steps = 48
 ## Compile Functions
 gpu_out = ApplyStencil(st_inst1, data, t_steps)
 gpu_out = ApplyStencil(st_inst2, data, t_steps)
