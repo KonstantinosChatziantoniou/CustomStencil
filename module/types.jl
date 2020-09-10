@@ -33,6 +33,7 @@ mutable struct StencilInstance
     combined_time_step::Union{Bool, Int}
     m_kernel::Union{Nothing, Function}
     m_kernel_exp::Union{Nothing, Expr}
+    m_kernel_sym::Union{Nothing, Basic}
     m_max_radius::Union{Bool, Int}
     m_front_z_max::Union{Bool, Int}
     m_behind_z_max::Union{Bool, Int}

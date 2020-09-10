@@ -113,6 +113,11 @@ function CreateSymOffMatrices(radius)
 
     return Dsym, Doff
 end
+function CreateOffset(radius)
+    Doff = [[i,j,k] for i = -radius:radius, j=-radius:radius, k=-radius:radius]
+
+    return Doff
+end
 
 
 function CombineTimeSteps(base_expr::Basic, base_radius::Int,
@@ -136,6 +141,56 @@ function CombineTimeSteps(base_expr::Basic, base_radius::Int,
         end
     end
     return new_eq
+end
+
+
+
+
+
+
+
+
+function combine_more_time_steps(base_expr, base_radius, steps)
+    steps = steps - 1
+    final_radius = (1+steps)*base_radius
+    all_syms,temp = CreateSymOffMatrices(final_radius)
+    new_eq = 0
+    b_sym = @view all_syms[1:2base_radius+1,1:2base_radius+1,1:2base_radius+1]
+    b_off = CreateOffset(base_radius)
+    expr = base_expr
+    for t = 1:steps
+        new_eq = 0
+        radius = (t)*base_radius
+        next_rad = (t+1)*base_radius
+        off = CreateOffset(radius)
+        sym = @view all_syms[1:2radius+1,1:2radius+1,1:2radius+1]
+        new_off = CreateOffset(next_rad)
+        new_sym = @view all_syms[1:2next_rad+1,1:2next_rad+1,1:2next_rad+1]
+        for i = 1:(2*radius+1), j = 1:(2*radius+1),k = 1:(2*radius+1)
+            c1 = coeff(expr, sym[i,j,k])
+            (c1 == 0) && continue
+            for ii = 1:(2*base_radius+1), jj = 1:(2*base_radius+1),kk = 1:(2*base_radius+1)
+                c2 = coeff(base_expr, b_sym[ii,jj,kk])
+                (c2 == 0) && continue
+                off2 = b_off[ii,jj,kk] + [i;j;k] .+ base_radius
+                new_eq += c1*c2*new_sym[off2...]
+            end
+        end
+        expr = new_eq
+    end
+    return expr
+
+end
+
+function matrix_from_expression(expr, radius)
+    sym,temp = CreateSymOffMatrices(radius)
+    template = zeros(Float32, 2radius+1,2radius+1,2radius+1)
+    for i = 1:(2*radius+1), j = 1:(2*radius+1),k = 1:(2*radius+1)
+        c1 = coeff(expr, sym[i,j,k])
+        (c1 == 0) && continue
+        template[i,j,k] = c1
+    end
+    return template
 end
 """
     function CombineTimeSteps(expr, radius)

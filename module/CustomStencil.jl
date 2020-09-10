@@ -4,11 +4,13 @@ include("parsing.jl")
 include("stencil_creation.jl")
 include("kernel_gen.jl")
 include("mgpu.jl")
+include("fft_2d.jl")
+include("fft_3d.jl")
 
 using TimerOutputs
 using StaticArrays
 timers = Vector{TimerOutput}(undef,0)
-
+using DSP
 
 export @def_stencil_expression
 export CreateStencilDefinition
@@ -99,6 +101,7 @@ function NewStencilInstance(varstencil::StencilDefinition...;prev_time_coeff=0, 
     m_fz = false
     m_bz = false
     fex2 = nothing
+    new_sym = nothing
     if !uses_vsq && m_step != false && prev_time_coeff==0
         MAX_RAD = 16
         if max_radius*m_step > MAX_RAD
@@ -106,18 +109,18 @@ function NewStencilInstance(varstencil::StencilDefinition...;prev_time_coeff=0, 
             @warn "Combining timesteps results in too big stencil. Time combination aborted"
         else
             r = max_radius
-            new_sym = st_sym
-            for i = 2:m_step
-                new_sym = CombineTimeSteps(st_sym, r, new_sym, r*i)
-            end
+            new_sym = combine_more_time_steps(st_sym, r, m_step)
+            # for i = 2:m_step
+            #     new_sym = CombineTimeSteps(st_sym, r, new_sym, r*i)
+            # end
             m_rad = max_radius*m_step
-            println(new_sym)
+            #println(new_sym)
             fex2,uses_vsq2,m_fz,m_bz = GenStencilKernel(new_sym,m_rad,prev_time_coeff, bdim)
             m_kernel = ConvertToFunction(fex2, uses_vsq2)
         end
     end
     return StencilInstance(varstencil, st_sym, max_radius,fz, bz, bdim, kernel, fex, uses_vsq,
-                        m_step, m_kernel, fex2, m_rad, m_fz, m_bz)
+                        m_step, m_kernel, fex2,new_sym, m_rad, m_fz, m_bz)
 end
 
 function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=nothing)
@@ -194,6 +197,43 @@ function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=
 
 end
 
+function ApplyFFTstencil(st_inst::StencilInstance, org_data, t_steps::Integer, multi=1)
+    @show z = size(org_data, 3)
+    template_single = matrix_from_expression(st_inst.stencil_sym, st_inst.max_radius)
+    template_multi = nothing
+    if multi > 1
+        template_multi = DSP.conv(template_single, template_single)
+        for i = 2:multi
+            template_multi = DSP.conv(template_multi, template_single)
+        end
+    end
+
+    ## 2d STENCIL
+    if z == 1
+        template_single = [:,:,st_inst.max_radius+1]
+        if template_multi != nothing
+            template_single = template_multi[:,:,multi*st_inst.max_radius+1]
+        end
+        org_data = org_data[:,:,1]
+        step = 1
+        if multi > 1
+            step = multi
+        end
+        t_steps = t_steps÷step
+        return fft_stencil_2d(org_data, template_single, t_steps)
+    end
+    if template_multi != nothing
+        template_single = template_multi
+    end
+    step = 1
+    if multi > 1
+        step = multi
+    end
+    t_steps = t_steps÷step
+    return fft_stencil_3d(org_data, template_single, t_steps)
+
+
+end
 
 # function ApplyStencil(st_inst::StencilInstance, data, t_steps::Integer; vsq=nothing)
 #     radius = st_inst.max_radius
