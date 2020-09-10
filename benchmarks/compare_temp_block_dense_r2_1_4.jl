@@ -15,9 +15,9 @@ st_inst2 = NewStencilInstance(st_def, m_step=2, bdim=16)
 
 ## Input Data size Definition
 radius = 4
-nx = 6
-ny = 6
-nz = 6
+nx = 8
+ny = 8
+nz = 8
 dx = 1<<(nx)
 dy = 1<<(ny)
 dz = 1<<(nz)
