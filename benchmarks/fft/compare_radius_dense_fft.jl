@@ -2,8 +2,12 @@ include("../../module/CustomStencil.jl")
 include("../../misc/misc.jl")
 include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 4
+t_steps = 1
+if length(ARGS) == 1
+    t_steps = parse(Int, ARGS[1])
+end
 st_insts = []
-for i in [1 2 4 8 16]
+for i in [1 2 4 8]
     global st_insts
     coefs = round.([1/j for j = 1:(i+1)],digits=4)
     star_stencil = def_stencil_expression(:(@sum(i,$(-i), $(i),
@@ -49,7 +53,7 @@ function bench(st_insts)
 
     data = CreateData(dx,dy,dz)
 
-    t_steps = 1
+    global t_steps
 
     CUDA.cuProfilerStart()
     for i in st_insts
