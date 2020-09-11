@@ -35,6 +35,13 @@ macro def_stencil_expression(expr::Expr)#, data, current, t)
     return expr
 end
 
+function def_stencil_expression(expr::Expr)
+    expr = eval_macro(expr, Symbol("@sum"))
+    for i in [:abs, :max, :min]
+        expr = eval_func!(expr, i)
+    end
+    return expr
+end
 ```
     Used by eval to parse an expression to symbolic math
 ```
