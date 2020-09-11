@@ -60,7 +60,7 @@ function bench(st_insts)
     for i in st_insts
         ##global data, t_steps
         NVTX.@range "r$(i.max_radius)" begin
-            gpu_out = ApplyFFTstencil(i, data, t_steps)
+            gpu_out = ApplyFFTstencil(i, data, t_steps, t_steps)
         end
     end
 end
