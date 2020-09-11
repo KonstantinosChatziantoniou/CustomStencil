@@ -4,7 +4,8 @@ include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 4
 t_steps = 1
 if length(ARGS) == 1
-    t_steps = parse(Int, ARGS[1])
+    @show t_steps = parse(Int, ARGS[1])
+
 end
 st_insts = []
 for i in [1 2 4 8]
