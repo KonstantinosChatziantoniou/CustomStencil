@@ -3,7 +3,7 @@ include("../../misc/misc.jl")
 include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 4
 st_insts = []
-for i in [1 2 4 8 16]
+for i in [1 2 4 8]
     global st_insts
     coefs = round.([1/j for j = 1:(i+1)],digits=4)
     star_stencil = def_stencil_expression(:(@sum(i,$(-i), $(i),
