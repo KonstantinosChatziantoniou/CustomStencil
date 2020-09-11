@@ -50,3 +50,30 @@ Int(round(dz/2))+shift
 heatmap(gpu_out[:,:,Int(round(dz/2))+shift]-cpu_out[:,:,Int(round(dz/2))+shift])
 heatmap(cpu_out[:,:,Int(round(dz/2))+shift])
 heatmap(gpu_out[:,:,Int(round(dz/2))+shift])
+
+
+function init_coeff_arr(cf)
+    ex = :(cfarr = SA_F32[])
+    for i in cf
+        push!(ex.args[2].args , i)
+    end
+    return ex
+end
+
+ex = :(cfarr = SA_F32[1])
+
+using StaticArrays
+
+a = SA_F32[1,2,3]
+
+
+function ch_ker(arr)
+    a = SA_F32[1,2,3,0.5]
+    for i = 1:4
+        arr[threadIdx().x] += a[i]
+    end
+    return nothing
+end
+
+ar = CUDA.ones(Float32, 32)
+@cuda threads=32 ch_ker(ar)
