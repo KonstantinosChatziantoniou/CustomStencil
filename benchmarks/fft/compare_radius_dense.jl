@@ -3,7 +3,7 @@ include("../../misc/misc.jl")
 include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 4
 st_insts = []
-for i in [1 2 4 8 16 32]
+for i in [1 2 4 8 16]
     global st_insts
     coefs = round.([1/j for j = 1:(i+1)],digits=4)
     star_stencil = def_stencil_expression(:(@sum(i,$(-i), $(i),
@@ -42,9 +42,9 @@ end
 warmup(st_insts)
 ## Benchmark
 function bench(st_insts)
-    nx = 8
-    ny = 8
-    nz = 8
+    nx = 7
+    ny = 7
+    nz = 7
     dx = 1<<(nx)
     dy = 1<<(ny)
     dz = 1<<(nz)
