@@ -1,6 +1,6 @@
-include("../module/CustomStencil.jl")
-include("../misc/misc.jl")
-include("../misc/cpu_stencils.jl")
+include("../../module/CustomStencil.jl")
+include("../../misc/misc.jl")
+include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 4
 coefs = [0.5;0.25;0.125]
 star_stencil = @def_stencil_expression(

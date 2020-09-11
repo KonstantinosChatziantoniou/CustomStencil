@@ -1,6 +1,6 @@
-include("../module/CustomStencil.jl")
-include("../misc/misc.jl")
-include("../misc/cpu_stencils.jl")
+include("../../module/CustomStencil.jl")
+include("../../misc/misc.jl")
+include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 4
 st_insts = []
 for i in [1 2 4 8 16 32]
