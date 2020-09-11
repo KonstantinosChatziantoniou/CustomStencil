@@ -35,7 +35,7 @@ data = CreateData(dx,dy,dz)
 t_steps = 1
 
 for i in st_insts
-    global data, t_steps
+    #global data, t_steps
     gpu_out = ApplyStencil(i, data, t_steps)
 end
 end
@@ -55,7 +55,7 @@ function bench(st_insts)
 
     CUDA.cuProfilerStart()
     for i in st_insts
-        global data, t_steps
+        #global data, t_steps
 
         NVTX.@range "r$(i.max_radius)" begin
             gpu_out = ApplyStencil(i, data, t_steps)
