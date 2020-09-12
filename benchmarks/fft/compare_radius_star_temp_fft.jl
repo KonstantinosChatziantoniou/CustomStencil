@@ -58,7 +58,7 @@ function bench(st_insts)
     CUDA.cuProfilerStart()
     for i in st_insts
         ##global data, t_steps
-        t_steps = 16÷st_insts.max_radius
+        t_steps = 16÷i.max_radius
         t_steps = t_steps*t_mul
         if t_steps == 0
             t_steps = 1
