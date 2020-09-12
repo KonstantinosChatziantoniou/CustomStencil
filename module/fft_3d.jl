@@ -155,7 +155,7 @@ function fft_stencil_3d(data, template, t_steps=1)
     CUFFT.fft!(fd)
     CUFFT.fft!(ft)
     #@time m = fd.*ft
-    #@time elem_mul_3d!(fd,ft)
+    elem_mul_3d!(fd,ft)
     ## Time Loop
     CUFFT.ifft!(fd)
     r2 = r2÷2 + 1
