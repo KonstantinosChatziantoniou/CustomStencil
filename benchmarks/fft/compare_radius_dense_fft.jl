@@ -45,9 +45,9 @@ warmup(st_insts)
 
 ## Benchmark
 function bench(st_insts)
-    nx = 8
-    ny = 8
-    nz = 8
+    nx = 7
+    ny = 7
+    nz = 7
     dx = 1<<(nx)
     dy = 1<<(ny)
     dz = 1<<(nz)
