@@ -105,32 +105,60 @@ function cmplx_to_real_3d!(A)
 end
 
 
+#
+# function fft_stencil_3d(data, template, t_steps=1)
+#     # template is a 3d square array
+#     r = (size(template,1)-1)÷2
+#     dx,dy,dz = size(data)
+#     padded_data = PaddedView(0, data, (1:dx+2r, 1:dy+2r, 1:dz+2r), (1:dx,1:dy,1:dz))
+#     padded_template = PaddedView(0, template, (1:dx+2r, 1:dy+2r, 1:dz+2r), (1:2r+1,1:2r+1,1:2r+1))
+#     ## Initial Upload
+#     fd = CuArray{CUDA.cuFloatComplex}(padded_data)
+#     ft = CuArray{CUDA.cuFloatComplex}(padded_template)
+#     temp = similar(ft)
+#     CUFFT.fft!(fd)
+#     CUFFT.fft!(ft)
+#     elem_mul_3d!(fd,ft)
+#     ## Time Loop
+#     CUFFT.ifft!(fd)
+#     cu_offset_result_3d(fd, temp, r,r,r)
+#     cmplx_to_real_3d!(temp)
+#     fd,temp = temp,fd
+#     for t = 2:t_steps
+#         CUFFT.fft!(fd)
+#         elem_mul_3d!(fd,ft)
+#         CUFFT.ifft!(fd)
+#         cu_offset_result_3d(fd, temp, r,r,r)
+#         cmplx_to_real_3d!(temp)
+#         fd,temp = temp,fd
+#     end
+#     return view(real(Array(fd)), 1:dx, 1:dy, 1:dz)
+# end
 
 function fft_stencil_3d(data, template, t_steps=1)
     # template is a 3d square array
-    r = (size(template,1)-1)÷2
+    #r = (size(template,1)-1)÷2
+
+    r2 = size(template,1)
+    r = 32
+    while r < r2
+        r += 32
+    end
+    r = r + 1
     dx,dy,dz = size(data)
-    padded_data = PaddedView(0, data, (1:dx+2r, 1:dy+2r, 1:dz+2r), (1:dx,1:dy,1:dz))
-    padded_template = PaddedView(0, template, (1:dx+2r, 1:dy+2r, 1:dz+2r), (1:2r+1,1:2r+1,1:2r+1))
+    padded_data = PaddedView(0, data, (1:dx+r-1, 1:dy+r-1, 1:dz+r-1), (1:dx,1:dy,1:dz))
+    padded_template = PaddedView(0, template, (1:dx+r-1, 1:dy+r-1, 1:dz+r-1), (1:r2,1:r2,1:r2))
     ## Initial Upload
     fd = CuArray{CUDA.cuFloatComplex}(padded_data)
     ft = CuArray{CUDA.cuFloatComplex}(padded_template)
     temp = similar(ft)
     CUFFT.fft!(fd)
     CUFFT.fft!(ft)
-    elem_mul_3d!(fd,ft)
+    #@time m = fd.*ft
+    #@time elem_mul_3d!(fd,ft)
     ## Time Loop
     CUFFT.ifft!(fd)
-    cu_offset_result_3d(fd, temp, r,r,r)
-    cmplx_to_real_3d!(temp)
-    fd,temp = temp,fd
-    for t = 2:t_steps
-        CUFFT.fft!(fd)
-        elem_mul_3d!(fd,ft)
-        CUFFT.ifft!(fd)
-        cu_offset_result_3d(fd, temp, r,r,r)
-        cmplx_to_real_3d!(temp)
-        fd,temp = temp,fd
-    end
-    return view(real(Array(fd)), 1:dx, 1:dy, 1:dz)
+    r2 = r2÷2 + 1
+    rn = r2:(r2+dx-1)
+    return real(Array(fd))[rn,rn,rn]
 end
