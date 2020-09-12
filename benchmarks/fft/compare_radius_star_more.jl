@@ -2,8 +2,12 @@ include("../../module/CustomStencil.jl")
 include("../../misc/misc.jl")
 include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 4
+t_mul = 1
+if length(ARGS) == 1
+    t_mul = parse(Int, ARGS[1])
+end
 st_insts = []
-for i in [48 64 80]
+for i in [1 2 4 8 16]
     global st_insts
     coefs = round.([1/j for j = 1:(i+1)],digits=4)
     star_stencil = def_stencil_expression(:(c[0]D[x,y,z] + @sum(i, 1,$i, c[i]*(
@@ -51,13 +55,14 @@ function bench(st_insts)
 
     data = CreateData(dx,dy,dz)
 
-    t_steps = 1
+
 
     CUDA.cuProfilerStart()
     for i in st_insts
         #global data, t_steps
-
-        NVTX.@range "r$(i.max_radius)" begin
+        t_steps = 16÷st_insts.max_radius
+        t_steps = t_steps*t_mul
+        NVTX.@range "r$(i.max_radius)_$(t_steps)" begin
             gpu_out = ApplyStencil(i, data, t_steps)
         end
     end
