@@ -43,7 +43,10 @@ gpu_channels = nothing
 gpu_streams = nothing
 g_out = nothing
 all_stamps = []
+timerouts = nothing
 function init_gpu_channels(n_gpus::Integer; tp=Array{Float32,3})
+    global timerouts
+    timerouts = [TimerOutput() for i = 1:n_gpus]
     global gpu_channels
     gpu_channels = Vector{Channel{tp}}(undef, n_gpus)
 
@@ -170,9 +173,17 @@ function ApplyMultiGPU(n_gpus, st_inst, t_steps, data ;vsq=nothing, t_group=1)
     tasks = [Task(closure_constr(
                 i, t_steps, t_group, u_ind[i], st_inst, s_data[i],s_vsq
                 )) for i = 1:n_gpus]
-    NVTX.@range "main loop" begin
-        t = schedule.(tasks)
-        wait.(t)
+    timerout = TimerOutput()
+    @timeit timerout "Global" begin
+        NVTX.@range "main loop" begin
+            t = schedule.(tasks)
+            wait.(t)
+        end
+    end
+    println(timerout)
+    global timerouts
+    for i in timerouts
+        println(i)
     end
     global g_out
     return g_out
@@ -182,70 +193,76 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
     #id, t_steps, t_group, save_ind, st_inst, data, vsq
     return function one_gpu()
         global gpu_channels
+        global timerouts
+        timerout = timerouts[id]
         #global gpu_streams
         #cstr = gpu_streams[id]
         device!(0)
-        cstr = CUDA.CuDefaultStream()
-        println(id, " using ", device())
-        pers_t_group = t_group
-        radius = st_inst.max_radius
-        bdimx = st_inst.bdim
-        bdimy = st_inst.bdim
-        data = PadData(radius, org_data)
-        dx = size(data,1)
-        dy = size(data,2)
-        dz = size(data,3)
-        #@show size(data)
-        b_dev_a = Mem.alloc(Mem.Unified, prod(size(data))*sizeof(Float32))
-        dev_data = unsafe_wrap(CuArray{Float32,3}, convert(CuPtr{Float32}, b_dev_a),
-                  size(data); own=true)
-        copyto!(dev_data, (data))
-        #dev_out = CUDA.zeros(Float32, size(data))
-        b_dev_b = Mem.alloc(Mem.Unified, prod(size(data))*sizeof(Float32))
-        dev_out = unsafe_wrap(CuArray{Float32,3}, convert(CuPtr{Float32}, b_dev_b),
-                  size(data); own=true)
-        CUDA.cuMemsetD32_v2(dev_out,Float32(0),prod(size(data)))
-        dev_vsq = nothing
-        if st_inst.uses_vsq
-            if vsq isa Nothing
-                error("vsq array not provided")
+        @timeit timerout "Init $id" begin
+            cstr = CUDA.CuDefaultStream()
+            println(id, " using ", device())
+            pers_t_group = t_group
+            radius = st_inst.max_radius
+            bdimx = st_inst.bdim
+            bdimy = st_inst.bdim
+            data = PadData(radius, org_data)
+            dx = size(data,1)
+            dy = size(data,2)
+            dz = size(data,3)
+            #@show size(data)
+            b_dev_a = Mem.alloc(Mem.Unified, prod(size(data))*sizeof(Float32))
+            dev_data = unsafe_wrap(CuArray{Float32,3}, convert(CuPtr{Float32}, b_dev_a),
+                      size(data); own=true)
+            copyto!(dev_data, (data))
+            #dev_out = CUDA.zeros(Float32, size(data))
+            b_dev_b = Mem.alloc(Mem.Unified, prod(size(data))*sizeof(Float32))
+            dev_out = unsafe_wrap(CuArray{Float32,3}, convert(CuPtr{Float32}, b_dev_b),
+                      size(data); own=true)
+            CUDA.cuMemsetD32_v2(dev_out,Float32(0),prod(size(data)))
+            dev_vsq = nothing
+            if st_inst.uses_vsq
+                if vsq isa Nothing
+                    error("vsq array not provided")
+                end
+                dev_vsq = CuArray(vsq)
             end
-            dev_vsq = CuArray(vsq)
+            bx = Int(floor((dx - 2*radius)/bdimx))
+            by = Int(floor((dy - 2*radius)/bdimy))
+            ## Do first loop
+            #####################################################
+            ## Allocate pinned memory for async mem transfer   ##
+            #####################################################
+            halo_f = nothing
+            halo_b = nothing
+            (id != 1) && (halo_f = CudaHostMalloc(dx,dy,radius*t_group))
+            (id != length(gpu_channels)) && (halo_b = CudaHostMalloc(dx,dy,radius*t_group))
+            #####################################################
+            at_out = true
+            t_counter = 0
+            flag_break = false
         end
-        bx = Int(floor((dx - 2*radius)/bdimx))
-        by = Int(floor((dy - 2*radius)/bdimy))
-        ## Do first loop
-        #####################################################
-        ## Allocate pinned memory for async mem transfer   ##
-        #####################################################
-        halo_f = nothing
-        halo_b = nothing
-        (id != 1) && (halo_f = CudaHostMalloc(dx,dy,radius*t_group))
-        (id != length(gpu_channels)) && (halo_b = CudaHostMalloc(dx,dy,radius*t_group))
-        #####################################################
-        at_out = true
-        t_counter = 0
-        flag_break = false
         while true
             if t_counter + t_group >= t_steps
                 t_group = t_steps - t_counter
                 flag_break = true
             end
             ## Do t_group loop
-            for t = 0:(t_group-1)
-                offz_f = (id != 1)*t*radius
-                offz_b = (id != length(gpu_channels))*t*radius
-                args = (dev_data, dev_out, offz_f,offz_b, 0, 0)
-                if st_inst.uses_vsq
-                    args = (args..., dev_vsq)
+            @timeit timerout "kernel loop $id" begin
+                for t = 0:(t_group-1)
+                    offz_f = (id != 1)*t*radius
+                    offz_b = (id != length(gpu_channels))*t*radius
+                    args = (dev_data, dev_out, offz_f,offz_b, 0, 0)
+                    if st_inst.uses_vsq
+                        args = (args..., dev_vsq)
+                    end
+                    @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
+                                shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
+                                stream=cstr,
+                                st_inst.kernel(args...))
+                    println("t = $id $(t) $(t_counter + t)")
+                    dev_data,dev_out = dev_out,dev_data
+                    at_out = !at_out
                 end
-                @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
-                            shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
-                            stream=cstr,
-                            st_inst.kernel(args...))
-                println("t = $id $(t) $(t_counter + t)")
-                dev_data,dev_out = dev_out,dev_data
-                at_out = !at_out
             end
             # if !at_out
             dev_data,dev_out = dev_out,dev_data
@@ -254,30 +271,32 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
             if flag_break
                 break
             end
-            ## Communicate and replace halos
-            if halo_f != nothing
-               CudaAsyncDownload(dev_out,halo_f ,cstr, zoffset=radius*t_group)
-               #println(id, " halo_f ", sum(halo_f), " -- ", sum(dev_out[:,:,(radius*t_group+1):2radius*t_group]))
-           end
-           if halo_b != nothing
-               zofst = dz - 2*radius*t_group
-               CudaAsyncDownload(dev_out,halo_b, cstr, zoffset=zofst)
-               #println(id, " halo_b ", sum(halo_b), " -- ", sum(dev_out[:,:,(zofst+1):end]))
-           end
-           CUDA.synchronize()
-           communicate_halos(id, (halo_f), (halo_b))
-       # #NVTX.@range "COM UP $id" begin
-           if halo_f != nothing
-               #part_dev_arr = unsafe_wrap(CuArray{Float32, 3}, dev_out.ptr, (dx,dy,radius*t_group))
-               CudaAsyncUpload(halo_f, dev_out, cstr)
-           end
-           if halo_b != nothing
-               # part_dev_arr = unsafe_wrap(CuArray{Float32, 3},
-               #             dev_out.ptr + sizeof(Float32)*dx*dy*(dz-radius*t_group),
-               #             (dx,dy,radius*t_group))
+            @timeit timerout "comms $id" begin
+                ## Communicate and replace halos
+                if halo_f != nothing
+                   CudaAsyncDownload(dev_out,halo_f ,cstr, zoffset=radius*t_group)
+                   #println(id, " halo_f ", sum(halo_f), " -- ", sum(dev_out[:,:,(radius*t_group+1):2radius*t_group]))
+               end
+               if halo_b != nothing
+                   zofst = dz - 2*radius*t_group
+                   CudaAsyncDownload(dev_out,halo_b, cstr, zoffset=zofst)
+                   #println(id, " halo_b ", sum(halo_b), " -- ", sum(dev_out[:,:,(zofst+1):end]))
+               end
+               CUDA.synchronize()
+               communicate_halos(id, (halo_f), (halo_b))
+           # #NVTX.@range "COM UP $id" begin
+               if halo_f != nothing
+                   #part_dev_arr = unsafe_wrap(CuArray{Float32, 3}, dev_out.ptr, (dx,dy,radius*t_group))
+                   CudaAsyncUpload(halo_f, dev_out, cstr)
+               end
+               if halo_b != nothing
+                   # part_dev_arr = unsafe_wrap(CuArray{Float32, 3},
+                   #             dev_out.ptr + sizeof(Float32)*dx*dy*(dz-radius*t_group),
+                   #             (dx,dy,radius*t_group))
 
-               zofst = dz - radius*t_group
-               CudaAsyncUpload(halo_b,dev_out, cstr, zoffset=zofst)
+                   zofst = dz - radius*t_group
+                   CudaAsyncUpload(halo_b,dev_out, cstr, zoffset=zofst)
+               end
            end
        # #end
            t_counter += t_group
@@ -294,6 +313,5 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                             (radius+1):(size(org_data,2)+radius),
                             1+(id!=1)*(radius*t_group):end-(id!=length(gpu_channels))*(radius*t_group)])
 
-        CUDA.free
     end
 end
