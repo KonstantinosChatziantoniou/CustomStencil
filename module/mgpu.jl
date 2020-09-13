@@ -1,5 +1,5 @@
 using CUDA
-
+using TimerOutputs
 
 function CudaHostMalloc(x,y,z)
     return unsafe_wrap(Array{Float32, 3},
