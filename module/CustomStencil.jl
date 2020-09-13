@@ -133,7 +133,7 @@ end
 
 function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=nothing)
     # Fix padding for multi time step
-    global timers
+    #global timers
     to = TimerOutput()
     radius = st_inst.max_radius
     pad_radius = st_inst.max_radius
@@ -174,7 +174,7 @@ function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=
                 if st_inst.uses_vsq
                     args = (args..., dev_vsq)
                 end
-                println("Running combined $i")
+                #println("Running combined $i")
                 @timeit to "combined time step $(i)" begin
                 CUDA.@sync @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
                             shmem=((bdimx+2*st_inst.m_max_radius)*
@@ -190,7 +190,7 @@ function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=
         if st_inst.uses_vsq
             args = (args..., dev_vsq)
         end
-        println("t = $(i), (bx,by) = $((bx,by))")
+        #println("t = $(i), (bx,by) = $((bx,by))")
         @timeit to "One time step $(i)" begin
         CUDA.@sync @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
                     shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
@@ -200,7 +200,7 @@ function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=
         i += 1
     end
     end # Timer end
-    push!(timers, to)
+    println(to)
     return view(Array(dev_data), (pad_radius+1):(dx-pad_radius), (pad_radius+1):(dy-pad_radius),:)
 
 end

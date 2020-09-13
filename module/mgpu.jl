@@ -17,7 +17,7 @@ function CudaAsyncDownload(src::CuArray, dest::Array, stream; zoffset=Int(0))
     #buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, src.ptr+offset), sz)#, ctx)
     buf = convert(CuPtr{Nothing}, src.ptr+offset)#, ctx)
     CUDA.cuMemcpyDtoHAsync_v2(dest, buf, sz ,stream)
-    @show ( src.ptr,  src.ptr+offset)
+    #@show ( src.ptr,  src.ptr+offset)
     #CUDA.cuMemcpyDtoH(dest, buf, sz)
 
 end
@@ -28,7 +28,7 @@ function CudaAsyncUpload(src::Array, dest::CuArray, stream; zoffset=0)
     sz = sizeof(src)
     offset =  zoffset*size(src,1)*size(src,2)*sizeof(src[1])
     ctx = CuCurrentContext()
-    @show ( dest.ptr,  dest.ptr+offset)
+    #@show ( dest.ptr,  dest.ptr+offset)
     #buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, dest.ptr+offset), sz)#, ctx)
     buf = convert(CuPtr{Nothing}, dest.ptr+offset)
     CUDA.cuMemcpyHtoDAsync_v2(buf, src, sz,stream)
@@ -270,7 +270,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                                 shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
                                 stream=cstr,
                                 st_inst.kernel(args...))
-                    println("t = $id $(t) $(t_counter + t)")
+                    #println("t = $id $(t) $(t_counter + t)")
                     dev_data,dev_out = dev_out,dev_data
                     at_out = !at_out
                     #yield()
