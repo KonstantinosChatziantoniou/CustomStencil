@@ -267,7 +267,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
             d = 0
         end
         device!(d)
-        @timeit timerout "Init $id" begin
+        @timeit timerout "Init $id - $(Threads.threadid())" begin
             cstr = CUDA.CuDefaultStream()
             println(id, " using ", device())
             pers_t_group = t_group
@@ -331,6 +331,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                     @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
                                 shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
                                 st_inst.kernel(args...))
+                                yield()
                     #println("t = $id $(t) $(t_counter + t)")
                     dev_data,dev_out = dev_out,dev_data
                     at_out = !at_out
@@ -356,6 +357,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                    CudaAsyncDownload(dev_out,halo_b, cstr, zoffset=zofst)
                    #println(id, " halo_b ", sum(halo_b), " -- ", sum(dev_out[:,:,(zofst+1):end]))
                end
+               yield()
                communicate_halos(id, (halo_f), (halo_b))
            # #NVTX.@range "COM UP $id" begin
                if halo_f != nothing
@@ -370,6 +372,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                    zofst = dz - radius*t_group
                    CudaAsyncUpload(halo_b,dev_out, cstr, zoffset=zofst)
                end
+               yield()
                #CUDA.synchronize()
            end
        # #end
