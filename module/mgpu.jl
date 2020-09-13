@@ -171,13 +171,22 @@ function ApplyMultiGPU(n_gpus, st_inst, t_steps, data ;vsq=nothing, t_group=1)
             push!(s_vsq, @view vsq[:,:,s[1]:s[2]])
         end
     end
-    tasks = [Task(closure_constr(
+    # tasks = [Task(closure_constr(
+    #             i, t_steps, t_group, u_ind[i], st_inst, s_data[i],s_vsq
+    #             )) for i = 1:n_gpus]
+    timerout = TimerOutput()
+    # @timeit timerout "Global" begin
+    #     NVTX.@range "main loop" begin
+    #         t = schedule.(tasks)
+    #         wait.(t)
+    #     end
+    # end
+    tasks = [(closure_constr(
                 i, t_steps, t_group, u_ind[i], st_inst, s_data[i],s_vsq
                 )) for i = 1:n_gpus]
-    timerout = TimerOutput()
     @timeit timerout "Global" begin
         NVTX.@range "main loop" begin
-            t = schedule.(tasks)
+            t = [Threads.@spawn i() for i in tasks]
             wait.(t)
         end
     end
@@ -221,7 +230,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                       size(data); own=true)
             CUDA.cuMemsetD32_v2(dev_out,Float32(0),prod(size(data)))
             dev_vsq = nothing
-            yield()
+            #yield()
             if st_inst.uses_vsq
                 if vsq isa Nothing
                     error("vsq array not provided")
@@ -264,7 +273,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                     println("t = $id $(t) $(t_counter + t)")
                     dev_data,dev_out = dev_out,dev_data
                     at_out = !at_out
-                    yield()
+                    #yield()
                 end
             end
             # if !at_out
