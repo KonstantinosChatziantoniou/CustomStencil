@@ -2,9 +2,10 @@ using CUDA
 using TimerOutputs
 
 function CudaHostMalloc(x,y,z)
+    b = CUDA.Mem.alloc(Mem.Host, x*y*z*sizeof(Float32))
     return unsafe_wrap(Array{Float32, 3},
-                convert(Ptr{Float32}, CUDA.Mem.alloc(Mem.Host, x*y*z*sizeof(Float32))),
-                (x,y,z), own=false)
+                convert(Ptr{Float32}, b),
+                (x,y,z), own=false), b
 end
 
 function CudaAsyncDownload(src::CuArray, dest::Array, stream; zoffset=Int(0))
@@ -260,7 +261,12 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
         timerout = timerouts[id]
         #global gpu_streams
         #cstr = gpu_streams[id]
-        device!(id-1)
+        d = id-1
+        if length(collect(devices())) == 1
+            @warn "Only on gpu"
+            d = 0
+        end
+        device!(d)
         @timeit timerout "Init $id" begin
             cstr = CUDA.CuDefaultStream()
             println(id, " using ", device())
@@ -275,12 +281,12 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
             #@show size(data)
             b_dev_a = Mem.alloc(Mem.Unified, prod(size(data))*sizeof(Float32))
             dev_data = unsafe_wrap(CuArray{Float32,3}, convert(CuPtr{Float32}, b_dev_a),
-                      size(data); own=true)
+                      size(data); own=false)
             copyto!(dev_data, (data))
             #dev_out = CUDA.zeros(Float32, size(data))
             b_dev_b = Mem.alloc(Mem.Unified, prod(size(data))*sizeof(Float32))
             dev_out = unsafe_wrap(CuArray{Float32,3}, convert(CuPtr{Float32}, b_dev_b),
-                      size(data); own=true)
+                      size(data); own=false)
             CUDA.cuMemsetD32_v2(dev_out,Float32(0),prod(size(data)))
             dev_vsq = nothing
             #yield()
@@ -297,9 +303,11 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
             ## Allocate pinned memory for async mem transfer   ##
             #####################################################
             halo_f = nothing
+            b_f = nothing
             halo_b = nothing
-            (id != 1) && (halo_f = CudaHostMalloc(dx,dy,radius*t_group))
-            (id != length(gpu_channels)) && (halo_b = CudaHostMalloc(dx,dy,radius*t_group))
+            b_b = nothing
+            (id != 1) && ((halo_f,b_f) = CudaHostMalloc(dx,dy,radius*t_group))
+            (id != length(gpu_channels)) && ((halo_b, b_b) = CudaHostMalloc(dx,dy,radius*t_group))
             #####################################################
             at_out = true
             t_counter = 0
@@ -380,5 +388,10 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                             (radius+1):(size(org_data,2)+radius),
                             1+(id!=1)*(radius*t_group):end-(id!=length(gpu_channels))*(radius*t_group)])
 
+
+        CUDA.Mem.free(b_dev_a)
+        CUDA.Mem.free(b_dev_b)
+        (halo_f != nothing) && CUDA.Mem.free(b_f)
+        (halo_b != nothing) && CUDA.Mem.free(b_b)
     end
 end
