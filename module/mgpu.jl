@@ -169,7 +169,7 @@ function ApplyMultiGPU(n_gpus, st_inst, t_steps, data ;vsq=nothing, t_group=1)
     tasks = [Task(closure_constr(
                 i, t_steps, t_group, u_ind[i], st_inst, s_data[i],s_vsq
                 )) for i = 1:n_gpus]
-    NVTX.@range "main loop"
+    NVTX.@range "main loop" begin
         t = schedule.(tasks)
         wait.(t)
     end
