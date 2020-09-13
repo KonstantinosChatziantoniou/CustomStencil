@@ -336,7 +336,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                     at_out = !at_out
                     #yield()
                 end
-                CUDA.synchronize()
+                #CUDA.synchronize()
             end
             # if !at_out
             dev_data,dev_out = dev_out,dev_data
@@ -370,7 +370,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                    zofst = dz - radius*t_group
                    CudaAsyncUpload(halo_b,dev_out, cstr, zoffset=zofst)
                end
-               CUDA.synchronize()
+               #CUDA.synchronize()
            end
        # #end
            t_counter += t_group
