@@ -17,7 +17,7 @@ function CudaAsyncDownload(src::CuArray, dest::Array, stream; zoffset=Int(0))
     #ctx = CuCurrentContext()
     #buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, src.ptr+offset), sz)#, ctx)
     buf = convert(CuPtr{Nothing}, src.ptr+offset)#, ctx)
-    CUDA.cuMemcpyDtoH_v2(dest, buf, sz)
+    CUDA.cuMemcpyDtoHAsync_v2(dest, buf, sz, stream)
     #@show ( src.ptr,  src.ptr+offset)
     #CUDA.cuMemcpyDtoH(dest, buf, sz)
 
@@ -32,7 +32,7 @@ function CudaAsyncUpload(src::Array, dest::CuArray, stream; zoffset=0)
     #@show ( dest.ptr,  dest.ptr+offset)
     #buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, dest.ptr+offset), sz)#, ctx)
     buf = convert(CuPtr{Nothing}, dest.ptr+offset)
-    CUDA.cuMemcpyHtoD_v2(buf, src, sz)
+    CUDA.cuMemcpyHtoDAsync_v2(buf, src, sz,stream)
     #CUDA.cuMemcpyHtoD(buf, src, sz)
 end
 
@@ -267,8 +267,9 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
             d = 0
         end
         device!(d)
+
         @timeit timerout "Init $id - $(Threads.threadid())" begin
-            cstr = CUDA.CuDefaultStream()
+            cstr = CUDA.CuStream()
             println(id, " using ", device())
             pers_t_group = t_group
             radius = st_inst.max_radius
@@ -330,6 +331,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                     end
                     @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
                                 shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
+                                stream=cstr,
                                 st_inst.kernel(args...))
                                 yield()
                     #println("t = $id $(t) $(t_counter + t)")
