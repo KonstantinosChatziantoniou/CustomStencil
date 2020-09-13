@@ -58,53 +58,106 @@ function init_gpu_channels(n_gpus::Integer; tp=Array{Float32,3})
     gpu_streams = [CuDefaultStream() for i = 1:(n_gpus+1)]
     gpu_streams = gpu_streams[2:(n_gpus+1)]
 end
+function communicate_halos(id, hf, hb)
+    joinfirst = true
+    joinsecond = id != length(gpu_channels)
+    # if odd number of gpus.. last one doesn't communicate
+    if length(gpu_channels)%2 == 1
+        if id == length(gpu_channels)
+            joinfirst = false
+            @show joinsecond = true
+        end
+    end
 
+    recf = nothing
+    recb = nothing
+    global gpu_channels
+    a = gpu_channels
+    ## First exchange
+    group = (id+1)÷2 #[1,2] -> g1  [3,4]->g2
+    low = id%2 == 1
+    if joinfirst
+        println(id, " join first ", group, low)
+        if low
+            put!(a[id+1], copy(hb))
+            recb = take!(a[id])
+        else
+            recf = take!(a[id])
+            put!(a[id-1], copy(hf))
+        end
+    end
+    group = (id+2)÷2 #[2,3] -> g2
+    low = id%2 == 0
+    if id == 1
+        joinsecond = false
+    end
+    ## Second exchange
+    if joinsecond
+        println(id, " join second ", group, low)
+        if low
+            put!(a[id+1], copy(hb))
+            recb = take!(a[id])
+        else
+            recf = take!(a[id])
+            put!(a[id-1], copy(hf))
+        end
+    end
+
+    ## Copy to pageable mem
+    if hf != nothing
+        copy!(hf,recf)
+    end
+    if hb != nothing
+        copy!(hb, recb)
+    end
+
+end
 """
     communicate_halos(id, halo_front, halo_behind)
 
 Send and receive the halos to id +- 1.
 `halo_front` or `halo_behind` can be `nothing`
 """
-function communicate_halos(id, halo_front, halo_behind)
-    global gpu_channels
-    a = gpu_channels
-    n_tasks = length(gpu_channels)
-    rec_halo_f = nothing
-    rec_halo_b = nothing
-    if id == 1
-       #@show "1 sends to 2"
-       #@info "1 sending to 2 $(sum(halo_behind))"
-       put!(a[2], copy(halo_behind))
-       #@show "1 recieves from 2"
-       rec_halo_b = take!(a[1])
-       #@info "1 received from 2 $(sum(rec_halo_b))"
-   elseif id == n_tasks
-
-       #@show "$(id) receives from $(id-1)"
-       rec_halo_f = take!(a[n_tasks])
-       #@info "$(id) received from $(id-1) $(sum(rec_halo_f))"
-       #@show "$(id) sends to $(id-1)"
-       #@info "$(id) sending to $(id-1) $(sum(halo_front))"
-       put!(a[n_tasks-1], copy(halo_front))
-   else
-       #@show "$(id) receives from $(id-1)"
-       rec_halo_f = take!(a[id])
-       #@show "$(id) sends to $(id-1)"
-       put!(a[id-1], copy(halo_front))
-       #@show "$(id) sends to $(id+1)"
-       put!(a[id+1], copy(halo_behind))
-       #@show "$(id) receives from $(id+1)"
-       rec_halo_b = take!(a[id])
-   end
-
-   #return rec_halo_f, rec_halo_b
-   if halo_front != nothing
-       copy!(halo_front,rec_halo_f)
-   end
-   if halo_behind != nothing
-       copy!(halo_behind, rec_halo_b)
-   end
-end
+# function communicate_halos(id, halo_front, halo_behind)
+#     global gpu_channels
+#     a = gpu_channels
+#     n_tasks = length(gpu_channels)
+#     rec_halo_f = nothing
+#     rec_halo_b = nothing
+#     if id == 1
+#        #@show "1 sends to 2"
+#        #@info "1 sending to 2 $(sum(halo_behind))"
+#        put!(a[2], copy(halo_behind))
+#        #@show "1 recieves from 2"
+#        rec_halo_b = take!(a[1])
+#        #@info "1 received from 2 $(sum(rec_halo_b))"
+#    elseif id == n_tasks
+#
+#        #@show "$(id) receives from $(id-1)"
+#        rec_halo_f = take!(a[n_tasks])
+#        #@info "$(id) received from $(id-1) $(sum(rec_halo_f))"
+#        #@show "$(id) sends to $(id-1)"
+#        #@info "$(id) sending to $(id-1) $(sum(halo_front))"
+#        put!(a[n_tasks-1], copy(halo_front))
+#    else
+#        #@show "$(id) receives from $(id-1)"
+#        rec_halo_f = take!(a[id])
+#        #@show "$(id) sends to $(id-1)"
+#        put!(a[id-1], copy(halo_front))
+#        #@show "$(id) sends to $(id+1)"
+#        put!(a[id+1], copy(halo_behind))
+#        #@show "$(id) receives from $(id+1)"
+#        rec_halo_b = take!(a[id])
+#    end
+#
+#    #return rec_halo_f, rec_halo_b
+#    if halo_front != nothing
+#        copy!(halo_front,rec_halo_f)
+#    end
+#    if halo_behind != nothing
+#        copy!(halo_behind, rec_halo_b)
+#    end
+# end
 #     if id == 1
 #         put!(a[2], halo_behind)
 #         rec_halo_b = take!(a[1])
@@ -275,6 +328,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                     at_out = !at_out
                     #yield()
                 end
+                CUDA.synchronize()
             end
             # if !at_out
             dev_data,dev_out = dev_out,dev_data
@@ -294,7 +348,6 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                    CudaAsyncDownload(dev_out,halo_b, cstr, zoffset=zofst)
                    #println(id, " halo_b ", sum(halo_b), " -- ", sum(dev_out[:,:,(zofst+1):end]))
                end
-               CUDA.synchronize()
                communicate_halos(id, (halo_f), (halo_b))
            # #NVTX.@range "COM UP $id" begin
                if halo_f != nothing
@@ -309,6 +362,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                    zofst = dz - radius*t_group
                    CudaAsyncUpload(halo_b,dev_out, cstr, zoffset=zofst)
                end
+               CUDA.synchronize()
            end
        # #end
            t_counter += t_group
