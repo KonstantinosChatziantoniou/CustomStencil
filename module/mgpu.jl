@@ -32,7 +32,7 @@ function CudaAsyncUpload(src::Array, dest::CuArray, stream; zoffset=0)
     #@show ( dest.ptr,  dest.ptr+offset)
     #buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, dest.ptr+offset), sz)#, ctx)
     buf = convert(CuPtr{Nothing}, dest.ptr+offset)
-    CUDA.cuMemcpyHtoDA_v2(buf, src, sz)
+    CUDA.cuMemcpyHtoD_v2(buf, src, sz)
     #CUDA.cuMemcpyHtoD(buf, src, sz)
 end
 
