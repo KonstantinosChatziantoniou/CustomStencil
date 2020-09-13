@@ -14,10 +14,10 @@ function CudaAsyncDownload(src::CuArray, dest::Array, stream; zoffset=Int(0))
     # end
     sz = sizeof(dest)
     offset = zoffset*size(dest,1)*size(dest,2)*sizeof(dest[1])
-    ctx = CuCurrentContext()
+    #ctx = CuCurrentContext()
     #buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, src.ptr+offset), sz)#, ctx)
     buf = convert(CuPtr{Nothing}, src.ptr+offset)#, ctx)
-    CUDA.cuMemcpyDtoHAsync_v2(dest, buf, sz ,stream)
+    CUDA.cuMemcpyDtoH_v2(dest, buf, sz)
     #@show ( src.ptr,  src.ptr+offset)
     #CUDA.cuMemcpyDtoH(dest, buf, sz)
 
@@ -28,11 +28,11 @@ function CudaAsyncUpload(src::Array, dest::CuArray, stream; zoffset=0)
     # end
     sz = sizeof(src)
     offset =  zoffset*size(src,1)*size(src,2)*sizeof(src[1])
-    ctx = CuCurrentContext()
+    #ctx = CuCurrentContext()
     #@show ( dest.ptr,  dest.ptr+offset)
     #buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, dest.ptr+offset), sz)#, ctx)
     buf = convert(CuPtr{Nothing}, dest.ptr+offset)
-    CUDA.cuMemcpyHtoDAsync_v2(buf, src, sz,stream)
+    CUDA.cuMemcpyHtoDA_v2(buf, src, sz)
     #CUDA.cuMemcpyHtoD(buf, src, sz)
 end
 
@@ -330,7 +330,6 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                     end
                     @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
                                 shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
-                                stream=cstr,
                                 st_inst.kernel(args...))
                     #println("t = $id $(t) $(t_counter + t)")
                     dev_data,dev_out = dev_out,dev_data
@@ -383,10 +382,10 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
         global g_out
         t_group = pers_t_group
         id, length(gpu_channels)
-        g_out[:,:,save_ind[1]:save_ind[2]] = Array(dev_out[
+        g_out[:,:,save_ind[1]:save_ind[2]] = Array(dev_out)[
                             (radius+1):(size(org_data,1)+radius),
                             (radius+1):(size(org_data,2)+radius),
-                            1+(id!=1)*(radius*t_group):end-(id!=length(gpu_channels))*(radius*t_group)])
+                            1+(id!=1)*(radius*t_group):end-(id!=length(gpu_channels))*(radius*t_group)]
 
 
         CUDA.Mem.free(b_dev_a)
