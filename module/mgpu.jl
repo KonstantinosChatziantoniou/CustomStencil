@@ -204,7 +204,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
         b_dev_b = Mem.alloc(Mem.Unified, prod(size(data))*sizeof(Float32))
         dev_out = unsafe_wrap(CuArray{Float32,3}, convert(CuPtr{Float32}, b_dev_b),
                   size(data); own=true)
-        CUDA.cuMemsetD32(dev_out,Float32(0),prod(size(data)))
+        CUDA.cuMemsetD32_v2(dev_out,Float32(0),prod(size(data)))
         dev_vsq = nothing
         if st_inst.uses_vsq
             if vsq isa Nothing
