@@ -19,7 +19,8 @@ export StencilInstance
 export StencilDefinition
 export ApplyStencil
 export ApplyMultiGPU
-
+@info collect(devices())
+@info CUDA.version()
 """
     macro def_stencil_expression(expr::Expr)
 

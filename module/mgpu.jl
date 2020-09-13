@@ -14,13 +14,12 @@ function CudaAsyncDownload(src::CuArray, dest::Array, stream; zoffset=Int(0))
     sz = sizeof(dest)
     offset = zoffset*size(dest,1)*size(dest,2)*sizeof(dest[1])
     ctx = CuCurrentContext()
-    buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, src.ptr+offset), sz, ctx)
+    buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, src.ptr+offset), sz)#, ctx)
     CUDA.cuMemcpyDtoHAsync(dest, buf, sz ,stream)
     #@show (buf, size(dest), sz)
     #CUDA.cuMemcpyDtoH(dest, buf, sz)
 
 end
-
 function CudaAsyncUpload(src::Array, dest::CuArray, stream; zoffset=0)
     # if sizeof(dest) != sizeof(src)
     #     error("Array sizes don't match.")
@@ -28,7 +27,7 @@ function CudaAsyncUpload(src::Array, dest::CuArray, stream; zoffset=0)
     sz = sizeof(src)
     offset =  zoffset*size(src,1)*size(src,2)*sizeof(src[1])
     ctx = CuCurrentContext()
-    buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, dest.ptr+offset), sz, ctx)
+    buf = CUDA.Mem.DeviceBuffer(convert(CuPtr{Nothing}, dest.ptr+offset), sz)#, ctx)
     CUDA.cuMemcpyHtoDAsync(buf, src, sz,stream)
     #CUDA.cuMemcpyHtoD(buf, src, sz)
 end
