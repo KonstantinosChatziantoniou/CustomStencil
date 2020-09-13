@@ -225,25 +225,25 @@ function ApplyMultiGPU(n_gpus, st_inst, t_steps, data ;vsq=nothing, t_group=1)
             push!(s_vsq, @view vsq[:,:,s[1]:s[2]])
         end
     end
-    # tasks = [Task(closure_constr(
-    #             i, t_steps, t_group, u_ind[i], st_inst, s_data[i],s_vsq
-    #             )) for i = 1:n_gpus]
-    timerout = TimerOutput()
-    # @timeit timerout "Global" begin
-    #     NVTX.@range "main loop" begin
-    #         t = schedule.(tasks)
-    #         wait.(t)
-    #     end
-    # end
-    tasks = [(closure_constr(
+    tasks = [Task(closure_constr(
                 i, t_steps, t_group, u_ind[i], st_inst, s_data[i],s_vsq
                 )) for i = 1:n_gpus]
+    timerout = TimerOutput()
     @timeit timerout "Global" begin
         NVTX.@range "main loop" begin
-            t = [Threads.@spawn i() for i in tasks]
+            t = schedule.(tasks)
             wait.(t)
         end
     end
+    # tasks = [(closure_constr(
+    #             i, t_steps, t_group, u_ind[i], st_inst, s_data[i],s_vsq
+    #             )) for i = 1:n_gpus]
+    # @timeit timerout "Global" begin
+    #     NVTX.@range "main loop" begin
+    #         t = [Threads.@spawn i() for i in tasks]
+    #         wait.(t)
+    #     end
+    # end
     println(timerout)
     global timerouts
     for i in timerouts
@@ -376,7 +376,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                    zofst = dz - radius*t_group
                    CudaAsyncUpload(halo_b,dev_out, cstr, zoffset=zofst)
                end
-               yield()
+               
            end
        # #end
            t_counter += t_group
