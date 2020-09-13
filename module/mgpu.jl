@@ -184,7 +184,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
         global gpu_channels
         #global gpu_streams
         #cstr = gpu_streams[id]
-        device!(id-1)
+        device!(0)
         cstr = CUDA.CuDefaultStream()
         println(id, " using ", device())
         pers_t_group = t_group
@@ -196,8 +196,15 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
         dy = size(data,2)
         dz = size(data,3)
         #@show size(data)
-        dev_data = CuArray(data)
-        dev_out = CUDA.zeros(Float32, size(data))
+        b_dev_a = Mem.alloc(Mem.Unified, prod(size(data))*sizeof(Float32))
+        dev_data = unsafe_wrap(CuArray{Float32,3}, convert(CuPtr{Float32}, b_dev_a),
+                  size(data); own=true)
+        copyto!(dev_data, (data))
+        #dev_out = CUDA.zeros(Float32, size(data))
+        b_dev_b = Mem.alloc(Mem.Unified, prod(size(data))*sizeof(Float32))
+        dev_out = unsafe_wrap(CuArray{Float32,3}, convert(CuPtr{Float32}, b_dev_b),
+                  size(data); own=true)
+        CUDA.cuMemsetD32(dev_out,Float32(0),prod(size(data)))
         dev_vsq = nothing
         if st_inst.uses_vsq
             if vsq isa Nothing
@@ -286,5 +293,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
                             (radius+1):(size(org_data,1)+radius),
                             (radius+1):(size(org_data,2)+radius),
                             1+(id!=1)*(radius*t_group):end-(id!=length(gpu_channels))*(radius*t_group)])
+
+        CUDA.free
     end
 end
