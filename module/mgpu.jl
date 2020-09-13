@@ -77,7 +77,7 @@ function communicate_halos(id, hf, hb)
     group = (id+1)÷2 #[1,2] -> g1  [3,4]->g2
     low = id%2 == 1
     if joinfirst
-        println(id, " join first ", group, low)
+        #println(id, " join first ", group, low)
         if low
             put!(a[id+1], copy(hb))
             recb = take!(a[id])
@@ -93,7 +93,7 @@ function communicate_halos(id, hf, hb)
     end
     ## Second exchange
     if joinsecond
-        println(id, " join second ", group, low)
+        #println(id, " join second ", group, low)
         if low
             put!(a[id+1], copy(hb))
             recb = take!(a[id])
@@ -305,6 +305,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
             t_counter = 0
             flag_break = false
         end
+        @timeit timerout "whole loop" begin
         while true
             if t_counter + t_group >= t_steps
                 t_group = t_steps - t_counter
@@ -368,7 +369,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
            t_counter += t_group
            dev_data,dev_out = dev_out,dev_data
         end
-
+    end
         ## SAVE dev_out
         println(id, " end using ", device())
         global g_out

@@ -20,8 +20,17 @@ dx = 1<<(nx)
 dy = 1<<(ny)
 dz = 1<<(nz)
 
-data = CreateData(dx,dy,dz)
+data = CreateData(dx,dy,dz);
 
+
+g1 = ApplyStencil(st_inst, data, t_steps)
+g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group)
+
+
+println("AFTER WARMUP")
 
 CUDA.cuProfilerStart()
-g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group)
+NVTX.@range "single" begin
+g1 = ApplyStencil(st_inst, data, t_steps)end
+NVTX.@range "multi" begin
+g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group) end
