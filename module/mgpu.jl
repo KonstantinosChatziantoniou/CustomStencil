@@ -197,7 +197,7 @@ function closure_constr(id, t_steps, t_group, save_ind, st_inst, org_data, vsq)
         timerout = timerouts[id]
         #global gpu_streams
         #cstr = gpu_streams[id]
-        device!(0)
+        device!($id-1)
         @timeit timerout "Init $id" begin
             cstr = CUDA.CuDefaultStream()
             println(id, " using ", device())
