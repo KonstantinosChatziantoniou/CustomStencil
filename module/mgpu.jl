@@ -19,12 +19,12 @@ function comm_groups(n)
     gs = []
 
     for i = 1:n÷2
-        @show id = i*2
+        #@show id = i*2
         push!(gs, (id-1,id))
     end
 
     for i = 1:(n-1)÷2
-        @show id = i*2 + 1
+        #@show id = i*2 + 1
         push!(gs, (id-1,id))
     end
     return gs
@@ -174,11 +174,10 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
     @sync begin
         for i = 1:ngpus
             @async begin
-                @show s = u_ind[i]
-                @show host_off = size(g_out, 1)*size(g_out,2)*(s[1]-1)*sizeof(Float32)
-                @show dev_off = (i!=1)*radius*t_group*size(g_out, 1)*size(g_out,2)*sizeof(Float32)
-                @show bsize =  size(g_out, 1)*size(g_out,2)*(s[2]-s[1]+1)*sizeof(Float32)
-                @info (s[1]-1, s[2]-s[1]+1)
+                s = u_ind[i]
+                host_off = size(g_out, 1)*size(g_out,2)*(s[1]-1)*sizeof(Float32)
+                dev_off = (i!=1)*radius*t_group*size(g_out, 1)*size(g_out,2)*sizeof(Float32)
+                bsize =  size(g_out, 1)*size(g_out,2)*(s[2]-s[1]+1)*sizeof(Float32)
                 CUDA.cuMemcpy(ptr_host+host_off, gpu_pointers_in[i] + dev_off,
                             bsize)
             end
@@ -212,7 +211,7 @@ function call_kernel(bdim, id, ngpus, dev_in, dev_out, t_steps, st_inst)
                     st_inst.kernel(args...))
         dev_in,dev_out = dev_out,dev_in
         at_out = !at_out
-        @show "kernel $t $id $ngpus"
+        #@show "kernel $t $id $ngpus"
     end
 
     return at_out
