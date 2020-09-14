@@ -130,7 +130,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         @sync begin
             for i = 1:ngpus
                 @async begin
-                    device!(0)
+                    device!(i-1)
                     (dbg) && println(i, " start kernel")
                     j = i#(i+1)%ngpus + 1
                     at_out[i] = call_kernel(st_inst.bdim, i, ngpus,
