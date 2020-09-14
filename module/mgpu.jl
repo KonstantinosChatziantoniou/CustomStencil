@@ -57,7 +57,24 @@ function split_data_to_gpus(n_gpus,data, t_group, radius)
     [[-pad*(i!=1), pad*(i!=n_gpus)]  for i = 1:n_gpus]
     return map(x -> Int.(x) , edges),map(x -> Int.(x) , ed)
 end
-
+function k_init(d)
+    tx = (blockIdx().x-1)*blockDim().x + threadIdx().x
+    ty = (blockIdx().y-1)*blockDim().y + threadIdx().y
+    tz = (blockIdx().z-1)*blockDim().z + threadIdx().z
+    dx,dy,dz = size(d)
+    if tx <= dx && ty <= dy && tz <=dz
+        d[tx,ty,tz] = 0
+    end
+    return nothing
+end
+function init_zero(d, data)
+    device!(d)
+    threads = (16,16,16)
+    blocks = size(d).÷16
+    blocks = blocks .+ 1
+    @cuda blocks=blocks threads=threads k_init(data)
+    nothing
+end
 function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, dbg=false)
     to = TimerOutput()
     #init_gpu_channels(ngpus)
@@ -103,10 +120,13 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
                         (size(padded_data,1),size(padded_data,2),s_ind[i][2]-s_ind[i][1]+1),
                         own=false) for i = 1:ngpus]
     gpu_pointers_out = [convert(CuPtr{Nothing}, gpu_arrays_out[i].ptr) for i = 1:ngpus]
-
     for i = 1:ngpus
-        CUDA.cuMemsetD32_v2(gpu_pointers_out[i], Float32(0), prod(size(gpu_arrays_out[i])))
+        init_zero(i, gpu_arrays_in[i])
+        init_zero(i, gpu_arrays_out[i])
     end
+    # for i = 1:ngpus
+    #     CUDA.cuMemsetD32_v2(gpu_pointers_out[i], Float32(0), prod(size(gpu_arrays_out[i])))
+    # end
     ## MemCpy Initial Data
     @sync begin
         for i = 1:ngpus
@@ -158,11 +178,11 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
                     p1 = gpu_pointers_in[i[1]]
                     p2 = gpu_pointers_in[i[2]]
                     offp1 = p1 + dx*dy*(dz-2radius*t_group)*sizeof(Float32)
-                    CUDA.cuMemcpyDtoD_v2(p2, offp1, bsize)
+                    CUDA.cuMemcpy(p2, offp1, bsize)
 
                     offp1 = p1 + dx*dy*(dz-radius*t_group)*sizeof(Float32)
                     offp2 = p2 + dx*dy*(radius*t_group)*sizeof(Float32)
-                    CUDA.cuMemcpyDtoD_v2(offp1, offp2, bsize)
+                    CUDA.cuMemcpy(offp1, offp2, bsize)
                 end
             end
         end
@@ -184,11 +204,11 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         end
     end
     end
-    for i = 1:ngpus
-        CUDA.Mem.free(gpu_buffers[i])
-        CUDA.Mem.free(gpu_buffers_out[i])
-    end
-    CUDA.Mem.free(buf_host)
+    # for i = 1:ngpus
+    #     CUDA.Mem.free(gpu_buffers[i])
+    #     CUDA.Mem.free(gpu_buffers_out[i])
+    # end
+    # CUDA.Mem.free(buf_host)
     println(to)
     # return @view g_out[radius*t_group+1:end-radius*t_group,
     #         radius*t_group+1:end-radius*t_group, :]

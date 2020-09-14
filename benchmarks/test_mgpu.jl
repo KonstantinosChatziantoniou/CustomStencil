@@ -26,10 +26,15 @@ data = CreateData(dx,dy,dz);
 g1 = ApplyStencil(st_inst, data, t_steps);
 g1 = ApplyStencil(st_inst, data, t_steps);
 g1 = ApplyStencil(st_inst, data, t_steps);
+CUDA.device_reset!.(collect(devices()))
 g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group);
+CUDA.device_reset!.(collect(devices()))
 g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group);
+CUDA.device_reset!.(collect(devices()))
 g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group);
+CUDA.device_reset!.(collect(devices()))
 g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group);
+CUDA.device_reset!.(collect(devices()))
 #
 # println("AFTER WARMUP")
 #
