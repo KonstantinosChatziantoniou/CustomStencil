@@ -188,9 +188,10 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         CUDA.Mem.free(gpu_buffers[i])
         CUDA.Mem.free(gpu_buffers_out[i])
     end
+    CUDA.Mem.free(buf_host)
     println(to)
-    return @view g_out[radius*t_group+1:end-radius*t_group,
-            radius*t_group+1:end-radius*t_group, :]
+    # return @view g_out[radius*t_group+1:end-radius*t_group,
+    #         radius*t_group+1:end-radius*t_group, :]
 end
 
 function call_kernel(bdim, id, ngpus, dev_in, dev_out, t_steps, st_inst)
