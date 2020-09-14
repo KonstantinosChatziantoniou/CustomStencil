@@ -69,7 +69,7 @@ function k_init(d)
 end
 function init_zero(d, data)
     device!(d)
-    threads = (32,8,8)
+    threads = (16,8,8)
     blocks = size(data).÷threads
     blocks = blocks .+ 1
     @cuda blocks=blocks threads=threads k_init(data)
