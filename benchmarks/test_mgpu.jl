@@ -9,10 +9,10 @@ star_stencil = @def_stencil_expression c[0]D[x,y,z] + @sum(i, 1,1, c[i]*(
 st_def = CreateStencilDefinition(star_stencil, coefs)
 st_inst = NewStencilInstance(st_def, m_step=false)
 
-dsize = parse(Int, ARGS[1])
-t_steps = parse(Int, ARGS[2])
-t_group = parse(Int, ARGS[3])
-ngpus = parse(Int, ARGS[4])
+dsize = 8 #parse(Int, ARGS[1])
+t_steps = 16 #parse(Int, ARGS[2])
+t_group = 2 #parse(Int, ARGS[3])
+ngpus = 2#parse(Int, ARGS[4])
 nx = dsize
 ny = dsize
 nz = dsize
@@ -23,14 +23,14 @@ dz = 1<<(nz)
 data = CreateData(dx,dy,dz);
 
 
-g1 = ApplyStencil(st_inst, data, t_steps)
+g1 = ApplyStencil(st_inst, data, t_steps);
+g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group);
 g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group)
-
-
-println("AFTER WARMUP")
-
-CUDA.cuProfilerStart()
-NVTX.@range "single" begin
-g1 = ApplyStencil(st_inst, data, t_steps)end
-NVTX.@range "multi" begin
-g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group) end
+#
+# println("AFTER WARMUP")
+#
+# CUDA.cuProfilerStart()
+# NVTX.@range "single" begin
+# g1 = ApplyStencil(st_inst, data, t_steps)end
+# NVTX.@range "multi" begin
+# g2 = ApplyMultiGPU(ngpus , st_inst, t_steps, data, t_group=t_group) end
