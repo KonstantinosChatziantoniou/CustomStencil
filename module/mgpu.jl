@@ -80,7 +80,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
     ptr_host = buf_host.ptr
     g_out = unsafe_wrap(Array{Float32, 3},
                         convert(Ptr{Float32}, buf_host),
-                        size(padded_data), own=true)
+                        size(padded_data), own=false)
     copyto!(g_out, padded_data)
 
     ## Create Unified GPU arrays
@@ -190,7 +190,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         CUDA.Mem.free(gpu_buffers_out[i])
     end
     println(to)
-    return g_out[radius*t_group+1:end-radius*t_group,
+    return @view g_out[radius*t_group+1:end-radius*t_group,
             radius*t_group+1:end-radius*t_group, :]
 end
 
