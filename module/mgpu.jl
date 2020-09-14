@@ -63,14 +63,14 @@ function k_init(d)
     tz = (blockIdx().z-1)*blockDim().z + threadIdx().z
     dx,dy,dz = size(d)
     if tx <= dx && ty <= dy && tz <=dz
-        d[tx,ty,tz] = 0
+        @inbounds d[tx,ty,tz] = 0
     end
     return nothing
 end
 function init_zero(d, data)
     device!(d)
-    threads = (16,16,16)
-    blocks = size(data).÷16
+    threads = (32,8,8)
+    blocks = size(data).÷threads
     blocks = blocks .+ 1
     @cuda blocks=blocks threads=threads k_init(data)
     nothing
