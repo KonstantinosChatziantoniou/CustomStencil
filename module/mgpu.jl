@@ -121,8 +121,8 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
                         own=false) for i = 1:ngpus]
     gpu_pointers_out = [convert(CuPtr{Nothing}, gpu_arrays_out[i].ptr) for i = 1:ngpus]
     for i = 1:ngpus
-        init_zero(i, gpu_arrays_in[i])
-        init_zero(i, gpu_arrays_out[i])
+        init_zero(i-1, gpu_arrays_in[i])
+        init_zero(i-1, gpu_arrays_out[i])
     end
     # for i = 1:ngpus
     #     CUDA.cuMemsetD32_v2(gpu_pointers_out[i], Float32(0), prod(size(gpu_arrays_out[i])))
