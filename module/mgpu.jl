@@ -19,12 +19,12 @@ function comm_groups(n)
     gs = []
 
     for i = 1:n÷2
-        #@show id = i*2
+        id = i*2
         push!(gs, (id-1,id))
     end
 
     for i = 1:(n-1)÷2
-        #@show id = i*2 + 1
+        id = i*2 + 1
         push!(gs, (id-1,id))
     end
     return gs
