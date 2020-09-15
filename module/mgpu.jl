@@ -193,7 +193,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
     end
     ## Copy data to cpu
     #@timeit to "download" begin
-    @time
+    @time begin
     @sync begin
         for i = 1:ngpus
             @async begin
