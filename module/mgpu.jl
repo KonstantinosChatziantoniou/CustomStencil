@@ -140,26 +140,27 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
     at_out = [true for i = 1:ngpus]
     t_counter = 0
     flag_break = false
+    @time begin
     while true
         if t_counter + t_group >= t_steps
             t_group = t_steps - t_counter
             flag_break = true
         end
         ## kernel loop
-        @timeit to "kernels" begin
+        #@timeit to "kernels" begin
         @sync begin
             for i = 1:ngpus
                 @async begin
                     device!(i-1)
-                    (dbg) && println(i, " start kernel")
+                    #(dbg) && println(i, " start kernel")
                     j = i#(i+1)%ngpus + 1
                     at_out[i] = call_kernel(st_inst.bdim, i, ngpus,
                         gpu_arrays_in[j], gpu_arrays_out[j], t_group, st_inst)
-                    (dbg) && println(i, " end kernel")
+                    #(dbg) && println(i, " end kernel")
                 end
             end
         end
-        end
+        #end
         if !at_out[1]
             gpu_arrays_in,gpu_arrays_out = gpu_arrays_out,gpu_arrays_in
             gpu_pointers_in,gpu_pointers_out = gpu_pointers_out,gpu_pointers_in
@@ -170,7 +171,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         # ## comm data
         bsize = size(gpu_arrays_in[1], 1)*size(gpu_arrays_in[1], 1)*
                     radius*t_group*sizeof(Float32)
-        @timeit to "comms" begin
+        #@timeit to "comms" begin
         @sync begin
             for i in comm_g
                 @async begin
@@ -186,11 +187,13 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
                 end
             end
         end
-        end
+        #end
         t_counter += t_group
     end
+    end
     ## Copy data to cpu
-    @timeit to "download" begin
+    #@timeit to "download" begin
+    @time
     @sync begin
         for i = 1:ngpus
             @async begin
@@ -204,12 +207,14 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         end
     end
     end
+    nothing
+    #end
     # for i = 1:ngpus
     #     CUDA.Mem.free(gpu_buffers[i])
     #     CUDA.Mem.free(gpu_buffers_out[i])
     # end
     # CUDA.Mem.free(buf_host)
-    println(to)
+    #println(to)
     # return @view g_out[radius*t_group+1:end-radius*t_group,
     #         radius*t_group+1:end-radius*t_group, :]
 end
