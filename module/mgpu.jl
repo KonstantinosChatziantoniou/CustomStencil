@@ -75,7 +75,7 @@ function init_zero(d, data)
     @cuda blocks=blocks threads=threads k_init(data)
     nothing
 end
-function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, dbg=false)
+function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, dbg=false, mc=false)
     to = TimerOutput()
     #init_gpu_channels(ngpus)
     radius = max(st_inst.front_z_max, st_inst.behind_z_max)
@@ -120,14 +120,24 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
                         (size(padded_data,1),size(padded_data,2),s_ind[i][2]-s_ind[i][1]+1),
                         own=false) for i = 1:ngpus]
     gpu_pointers_out = [convert(CuPtr{Nothing}, gpu_arrays_out[i].ptr) for i = 1:ngpus]
-    for i = 1:ngpus
-        init_zero(i-1, gpu_arrays_in[i])
-        init_zero(i-1, gpu_arrays_out[i])
-    end
+
     # for i = 1:ngpus
     #     CUDA.cuMemsetD32_v2(gpu_pointers_out[i], Float32(0), prod(size(gpu_arrays_out[i])))
     # end
     ## MemCpy Initial Data
+    @timit to "shit" begin
+    @sync begin
+        for i = 1:ngpus
+            @async begin
+                device!(i-1)
+                #(dbg) && println(i, " start kernel")
+                j = i#(i+1)%ngpus + 1
+                a = call_kernel(st_inst.bdim, i, ngpus,
+                    gpu_arrays_in[j], gpu_arrays_out[j], 1, st_inst)
+                #(dbg) && println(i, " end kernel")
+            end
+        end
+    end end
     @sync begin
         for i = 1:ngpus
             s = s_ind[i]
@@ -137,10 +147,12 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         end
     end
     end
+
     at_out = [true for i = 1:ngpus]
     t_counter = 0
     flag_break = false
-    @time begin
+    #@time begin
+    @timeit to "loop" begin
     while true
         if t_counter + t_group >= t_steps
             t_group = t_steps - t_counter
@@ -148,6 +160,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         end
         ## kernel loop
         #@timeit to "kernels" begin
+        @timeit to "kernel" begin
         @sync begin
             for i = 1:ngpus
                 @async begin
@@ -159,6 +172,17 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
                     #(dbg) && println(i, " end kernel")
                 end
             end
+        end
+        if mc
+            @sync begin
+                for i = 1:ngpus
+                    @async begin
+                        device!(i-1)
+                        CUDA.synchronize()
+                    end
+                end
+            end
+        end
         end
         #end
         if !at_out[1]
@@ -172,6 +196,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         bsize = size(gpu_arrays_in[1], 1)*size(gpu_arrays_in[1], 1)*
                     radius*t_group*sizeof(Float32)
         #@timeit to "comms" begin
+        @timeit to "coms" begin
         @sync begin
             for i in comm_g
                 @async begin
@@ -186,14 +211,31 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
                     CUDA.cuMemcpy(offp1, offp2, bsize)
                 end
             end
+            if mc
+                @sync begin
+                    for i = 1:ngpus
+                        @async begin
+                            device!(i-1)
+                            CUDA.synchronize()
+                        end
+                    end
+                end
+            end
+        end
         end
         #end
+
         t_counter += t_group
     end
-    end
-    ## Copy data to cpu
-    #@timeit to "download" begin
-    @time begin
+    # @sync begin
+    #     for i = 1:ngpus
+    #         @async begin
+    #             device!(i-1)
+    #             CUDA.synchronize()
+    #         end
+    #     end
+    # end
+    @timeit to "dow" begin
     @sync begin
         for i = 1:ngpus
             @async begin
@@ -207,6 +249,23 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         end
     end
     end
+    ## Copy data to cpu
+    #@timeit to "download" begin
+    # @timeit to "dow" begin
+    # @sync begin
+    #     for i = 1:ngpus
+    #         @async begin
+    #             s = u_ind[i]
+    #             host_off = size(g_out, 1)*size(g_out,2)*(s[1]-1)*sizeof(Float32)
+    #             dev_off = (i!=1)*radius*t_group*size(g_out, 1)*size(g_out,2)*sizeof(Float32)
+    #             bsize =  size(g_out, 1)*size(g_out,2)*(s[2]-s[1]+1)*sizeof(Float32)
+    #             CUDA.cuMemcpy(ptr_host+host_off, gpu_pointers_in[i] + dev_off,
+    #                         bsize)
+    #         end
+    #     end
+    # end
+    end
+    println(to)
     nothing
     #end
     # for i = 1:ngpus
