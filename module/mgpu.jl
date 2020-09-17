@@ -125,7 +125,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
     #     CUDA.cuMemsetD32_v2(gpu_pointers_out[i], Float32(0), prod(size(gpu_arrays_out[i])))
     # end
     ## MemCpy Initial Data
-    @timit to "shit" begin
+    @timeit to "shit" begin
     @sync begin
         for i = 1:ngpus
             @async begin
