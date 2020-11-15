@@ -25,7 +25,7 @@ for i = parse(Int, ARGS[1])
             end
         end
     end
-    @show dense_coefs
+    @show sum(dense_coefs .==1)/729
     st_def = CreateStencilDefinition(dense_coefs)
     bdim = 32
     if length(ARGS) == 2
@@ -61,7 +61,7 @@ for i = parse(Int, ARGS[1])
     NVTX.@range "r3" begin
         gpu_out = ApplyFFTstencil(st_inst1, data, 32,32) end
 
-    ApplyFFTstencil(st_inst1, data, 48,48)    
+    ApplyFFTstencil(st_inst1, data, 48,48)
     NVTX.@range "r4" begin
         gpu_out = ApplyFFTstencil(st_inst1, data, 48,48) end
     exit()

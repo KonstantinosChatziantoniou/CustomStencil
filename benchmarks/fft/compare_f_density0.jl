@@ -18,7 +18,7 @@ for i = parse(Int, ARGS[1])
     dense_coefs[5,5,1:9] .= 1
     d = (5-i:5+i)
     dense_coefs[d,d,d] .= 1
-    @show dense_coefs
+    @show sum(dense_coefs .==1)/729
     st_def = CreateStencilDefinition(dense_coefs)
     bdim = 32
     if length(ARGS) == 2
