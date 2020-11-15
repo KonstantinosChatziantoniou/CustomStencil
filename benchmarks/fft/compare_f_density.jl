@@ -55,15 +55,15 @@ for i = parse(Int, ARGS[1])
 
     ApplyFFTstencil(st_inst1, data, t_steps,16)
     NVTX.@range "r2" begin
-        gpu_out = ApplyFFTstencil(st_inst1, data, t_steps,16) end
+        gpu_out = ApplyFFTstencil(st_inst1, data, t_steps,4) end
 
-    ApplyFFTstencil(st_inst1, data, 32,32)
+    ApplyFFTstencil(st_inst1, data, 32,8)
     NVTX.@range "r3" begin
-        gpu_out = ApplyFFTstencil(st_inst1, data, 32,32) end
+        gpu_out = ApplyFFTstencil(st_inst1, data, 32,8) end
 
-    ApplyFFTstencil(st_inst1, data, 48,48)
+    ApplyFFTstencil(st_inst1, data, 48,12)
     NVTX.@range "r4" begin
-        gpu_out = ApplyFFTstencil(st_inst1, data, 48,48) end
+        gpu_out = ApplyFFTstencil(st_inst1, data, 48,12) end
     exit()
 
 end
