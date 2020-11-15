@@ -25,8 +25,9 @@ for i = parse(Int, ARGS[1])
             end
         end
     end
+    @show dense_coefs
     st_def = CreateStencilDefinition(dense_coefs)
-    st_inst1 = NewStencilInstance(st_def, m_step=false)
+    st_inst1 = NewStencilInstance(st_def, bdim=16, m_step=false)
 
     radius = 4
     nx = 8
