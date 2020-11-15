@@ -10,21 +10,14 @@ include("../../misc/cpu_stencils.jl")
 dense_coefs = ones(9,9,9)
 
 for i = parse(Int, ARGS[1])
-    global dense_coefs
-    for x = (i-1):-1:0
-        for y = (i-1):-1:0
-            for z = (i-1):-1:0
-                dense_coefs[1+x,1+y,1+z] = 0
-                dense_coefs[1+x,1+y,9-z] = 0
-                dense_coefs[1+x,9-y,1+z] = 0
-                dense_coefs[1+x,9-y,9-z] = 0
-                dense_coefs[9-x,1+y,1+z] = 0
-                dense_coefs[9-x,1+y,9-z] = 0
-                dense_coefs[9-x,9-y,1+z] = 0
-                dense_coefs[9-x,9-y,9-z] = 0
-            end
-        end
-    end
+
+
+    dense_coefs = zeros(9,9,9)
+    dense_coefs[1:9,5,5] .= 1
+    dense_coefs[5,1:9,5] .= 1
+    dense_coefs[5,5,1:9] .= 1
+    d = (5-i:5+i)
+    dense_coefs[d,d,d] .= 1
     @show dense_coefs
     st_def = CreateStencilDefinition(dense_coefs)
     bdim = 32
