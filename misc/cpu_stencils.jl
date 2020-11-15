@@ -235,3 +235,35 @@ function cpu_star_stencil_vsq_prev_val(org_data,vsq,
     #end
 
 end
+
+
+function cpu_jacobi_stencil(org_data, radius, coefs, t_steps)
+    data = PadData(radius, org_data)
+    data = Array(data)
+    function stencil!(data, out, radius, coefs)
+        #out = zeros(Float32,size(data))
+        for i = (radius+1):(size(data,1)-radius)
+            for j = (radius+1):(size(data,2)-radius)
+                k = 1
+                    c = coefs[1]*data[i,j,k]
+                    for r = 1:radius
+                        c += coefs[r+1]*(data[i + r,j,k] + data[i - r,j,k] +
+                        data[i,j + r,k] + data[i,j - r,k])
+                    end
+                    out[i,j,k] = c
+
+            end
+        end
+    end
+
+    #cout = stencil(data, radius, coefs)
+    cout = zeros(Float64, size(data))
+    for t = 1:t_steps
+        stencil!(data, cout, radius, coefs)
+        data,cout = cout,data
+    end
+
+    return @view data[(radius+1):(size(org_data,1)+radius),
+            (radius+1):(size(org_data,2)+radius),
+            1]
+end

@@ -166,7 +166,7 @@ function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=
     i = 0
     #st_inst.combined_time_step = false
     #println(st_inst.combined_time_step)
-    @timeit to "Apply Stencil Loop" begin
+    @time begin
     while i < t_steps
         if st_inst.combined_time_step != false
             if i + st_inst.combined_time_step <= t_steps
@@ -176,7 +176,7 @@ function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=
                 end
                 #println("Running combined $i")
                 @timeit to "combined time step $(i)" begin
-                CUDA.@sync @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
+                @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
                             shmem=((bdimx+2*st_inst.m_max_radius)*
                                 (bdimy+2*st_inst.m_max_radius))*sizeof(Float32),
                             st_inst.m_kernel(args...))
@@ -191,16 +191,18 @@ function ApplyStencil(st_inst::StencilInstance, org_data, t_steps::Integer; vsq=
             args = (args..., dev_vsq)
         end
         #println("t = $(i), (bx,by) = $((bx,by))")
-        @timeit to "One time step $(i)" begin
-        CUDA.@sync @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
+
+        @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
                     shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
                     st_inst.kernel(args...))
-        end # Timer End
+
         dev_data,dev_out = dev_out,dev_data
         i += 1
-    end
+
     end # Timer end
-    println(to)
+
+    CUDA.synchronize(CuDefaultStream())
+    end
     return view(Array(dev_data), (pad_radius+1):(dx-pad_radius), (pad_radius+1):(dy-pad_radius),:)
 
 end

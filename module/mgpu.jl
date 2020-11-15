@@ -1,7 +1,6 @@
 using CUDA
 using PaddedViews
 using TimerOutputs
-
 function PadData(pd, data)
     x = size(data,1)
     y = size(data,2)
@@ -75,7 +74,12 @@ function init_zero(d, data)
     @cuda blocks=blocks threads=threads k_init(data)
     nothing
 end
-function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, dbg=false, mc=false)
+function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, dbg=false, mc=false, specific_gpus=false)
+    spec_gpus = collect(0:ngpus-1)
+
+    if ngpus == 2
+        spec_gpus = [1 2]
+    end
     to = TimerOutput()
     #init_gpu_channels(ngpus)
     radius = max(st_inst.front_z_max, st_inst.behind_z_max)
@@ -129,7 +133,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
     @sync begin
         for i = 1:ngpus
             @async begin
-                device!(i-1)
+                device!(spec_gpus[i])
                 #(dbg) && println(i, " start kernel")
                 j = i#(i+1)%ngpus + 1
                 a = call_kernel(st_inst.bdim, i, ngpus,
@@ -164,12 +168,25 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         @sync begin
             for i = 1:ngpus
                 @async begin
-                    device!(i-1)
+                    device!(spec_gpus[i])
+                    if ngpus == 4
+                        if i != 1
+                            j = i#(i+1)%ngpus + 1
+                            at_out[i] = call_kernel(st_inst.bdim, i, ngpus,
+                                gpu_arrays_in[j], gpu_arrays_out[j], t_group, st_inst)
+                        end
+                    else
+                        j = i#(i+1)%ngpus + 1
+                        at_out[i] = call_kernel(st_inst.bdim, i, ngpus,
+                            gpu_arrays_in[j], gpu_arrays_out[j], t_group, st_inst)
+                    end
+                    #println(i, "start")
                     #(dbg) && println(i, " start kernel")
-                    j = i#(i+1)%ngpus + 1
-                    at_out[i] = call_kernel(st_inst.bdim, i, ngpus,
-                        gpu_arrays_in[j], gpu_arrays_out[j], t_group, st_inst)
+                    # j = i#(i+1)%ngpus + 1
+                    # at_out[i] = call_kernel(st_inst.bdim, i, ngpus,
+                    #     gpu_arrays_in[j], gpu_arrays_out[j], t_group, st_inst)
                     #(dbg) && println(i, " end kernel")
+                    #println(i, "end")
                 end
             end
         end
@@ -177,7 +194,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
             @sync begin
                 for i = 1:ngpus
                     @async begin
-                        device!(i-1)
+                        device!(spec_gpus[i])
                         CUDA.synchronize()
                     end
                 end
@@ -200,11 +217,26 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         @sync begin
             for i in comm_g
                 @async begin
+                    #println(i, " left")
                     dx,dy,dz = size(gpu_arrays_in[i[1]])
                     p1 = gpu_pointers_in[i[1]]
                     p2 = gpu_pointers_in[i[2]]
                     offp1 = p1 + dx*dy*(dz-2radius*t_group)*sizeof(Float32)
                     CUDA.cuMemcpy(p2, offp1, bsize)
+
+                    # offp1 = p1 + dx*dy*(dz-radius*t_group)*sizeof(Float32)
+                    # offp2 = p2 + dx*dy*(radius*t_group)*sizeof(Float32)
+                    # CUDA.cuMemcpy(offp1, offp2, bsize)
+                end
+            end
+            for i in comm_g
+                @async begin
+                    #println(i, " right")
+                    dx,dy,dz = size(gpu_arrays_in[i[1]])
+                    p1 = gpu_pointers_in[i[1]]
+                    p2 = gpu_pointers_in[i[2]]
+                    # offp1 = p1 + dx*dy*(dz-2radius*t_group)*sizeof(Float32)
+                    # CUDA.cuMemcpy(p2, offp1, bsize)
 
                     offp1 = p1 + dx*dy*(dz-radius*t_group)*sizeof(Float32)
                     offp2 = p2 + dx*dy*(radius*t_group)*sizeof(Float32)
@@ -215,7 +247,7 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
                 @sync begin
                     for i = 1:ngpus
                         @async begin
-                            device!(i-1)
+                            device!(spec_gpus[i])
                             CUDA.synchronize()
                         end
                     end
@@ -228,12 +260,16 @@ function ApplyMultiGPU(ngpus, st_inst, t_steps, data ;vsq=nothing, t_group=1, db
         t_counter += t_group
     end
     # @sync begin
+    # @timeit to "sync" begin
     #     for i = 1:ngpus
     #         @async begin
-    #             device!(i-1)
+    #             device!(spec_gpus[i])
+    #             println("sync ", i)
     #             CUDA.synchronize()
+    #             println("sync comp", i)
     #         end
     #     end
+    # end
     # end
     @timeit to "dow" begin
     @sync begin
@@ -294,6 +330,40 @@ function call_kernel(bdim, id, ngpus, dev_in, dev_out, t_steps, st_inst)
         @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
                     shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
                     st_inst.kernel(args...))
+        dev_in,dev_out = dev_out,dev_in
+        at_out = !at_out
+        #@show "kernel $t $id $ngpus"
+    end
+
+    return at_out
+end
+
+
+
+function ghost_phase(bdim, id, ngpus, dev_in, dev_out, t_steps, st_inst)
+    bdimx = bdim
+    bdimy = bdim
+    radius = st_inst.max_radius
+    dx = size(dev_in,1)
+    dy = size(dev_in,2)
+    bx = Int(floor((dx - 2*radius)/bdim))
+    by = Int(floor((dy - 2*radius)/bdim))
+    at_out = true
+    for t = 0:t_steps-1
+        offz_f = (id != 1)*t*radius
+        offz_b = (id != ngpus)*t*radius
+        args = (dev_in, dev_out, offz_f,offz_b, 0, 0)
+        if id != 1
+            offz_f =
+            @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
+                        shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
+                        st_inst.kernel(args...))
+        end
+        if id != ngpus
+            @cuda(blocks=(bx,by,1), threads=(bdimx,bdimy),
+                        shmem=((bdimx+2*radius)*(bdimy+2*radius))*sizeof(Float32),
+                        st_inst.kernel(args...))
+        end
         dev_in,dev_out = dev_out,dev_in
         at_out = !at_out
         #@show "kernel $t $id $ngpus"
