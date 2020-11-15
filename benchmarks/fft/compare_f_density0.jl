@@ -42,16 +42,21 @@ for i = parse(Int, ARGS[1])
     CUDA.cuProfilerStart()
     NVTX.@range "standard" begin
         gpu_out = ApplyStencil(st_inst1, data, t_steps) end
+    ApplyFFTstencil(st_inst1, data, t_steps,1)
     NVTX.@range "r1" begin
         gpu_out = ApplyFFTstencil(st_inst1, data, t_steps,1) end
+
+    ApplyFFTstencil(st_inst1, data, t_steps,16)
     NVTX.@range "r2" begin
-        gpu_out = ApplyFFTstencil(st_inst1, data, t_steps,2) end
-    NVTX.@range "r3" begin
-        gpu_out = ApplyFFTstencil(st_inst1, data, t_steps,4) end
-    NVTX.@range "r4" begin
-        gpu_out = ApplyFFTstencil(st_inst1, data, t_steps,8) end
-    NVTX.@range "r5" begin
         gpu_out = ApplyFFTstencil(st_inst1, data, t_steps,16) end
+
+    ApplyFFTstencil(st_inst1, data, 32,32)
+    NVTX.@range "r3" begin
+        gpu_out = ApplyFFTstencil(st_inst1, data, 32,32) end
+
+    ApplyFFTstencil(st_inst1, data, 48,48)
+    NVTX.@range "r4" begin
+        gpu_out = ApplyFFTstencil(st_inst1, data, 48,48) end
     exit()
 
 end
