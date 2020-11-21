@@ -55,10 +55,14 @@ function bench(st_insts)
     CUDA.cuProfilerStart()
     for i in st_insts
         ##global data, t_steps
-        @show r = i.max_radius
-        @show ms1 = 64÷r -1
-        @show ms2 = 32÷r -1
-        @show ms3 = 48÷r -1
+        r = i.max_radius
+        ms1 = 64÷r
+        ms1 -= 1
+        ms2 = 32÷r
+        ms2 -= 1
+        ms3 = 48÷r
+        ms3 -= 1
+        print(r, ms1,ms2,ms3)
         NVTX.@range "r$(i.max_radius) 3" begin
             gpu_out = ApplyFFTstencil(i, data, t_steps, ms3)
         end
