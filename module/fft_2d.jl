@@ -104,6 +104,7 @@ function fft_stencil_2d(data, template, t_steps=1)
     while r <= r2
         r += 32
     end
+    println("FFT EXTRA RADIUS: ", r)
     r = r + 1
     print(template)
     print((size(data)))
