@@ -141,7 +141,7 @@ function fft_stencil_3d(data, template, t_steps=1)
 
     r2 = size(template,1)
     r = 32
-    while r < r2
+    while r <= r2
         r += 32
     end
     r = r + 1
