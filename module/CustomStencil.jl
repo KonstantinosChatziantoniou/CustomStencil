@@ -94,6 +94,18 @@ function CreateStencilDefinition(coefs::Array{T, 3}; uses_vsq=false) where T <: 
     return StencilDefinition(nothing, coefs, max_radius, uses_vsq)
 end
 
+function CreateStencilDefinition(coefs::Array{T, 2}; uses_vsq=false) where T <: Number
+    # check coefs is cube
+
+    coefs = Float64.(coefs)
+
+    sz = size(coefs)
+    !(sz[1] == sz[2]) &&  error("coefs array must have same dimensions size")
+    max_radius = Int((sz[1] - 1)/2)
+
+    return StencilDefinition(nothing, coefs, max_radius, uses_vsq)
+end
+
 
 """
     function NewStencilInstance(varstencil::StencilDefinition...)
@@ -220,7 +232,7 @@ function ApplyFFTstencil(st_inst::StencilInstance, org_data, t_steps::Integer, m
 
     ## 2d STENCIL
     if z == 1
-        template_single = [:,:,st_inst.max_radius+1]
+        template_single = template_single[:,:,st_inst.max_radius+1]
         if template_multi != nothing
             template_single = template_multi[:,:,multi*st_inst.max_radius+1]
         end

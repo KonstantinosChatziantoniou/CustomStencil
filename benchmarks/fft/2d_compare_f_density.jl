@@ -7,22 +7,17 @@ include("../../misc/cpu_stencils.jl")
 
 ##
 
-dense_coefs = ones(9,9,9)
+dense_coefs = ones(9,9)
 
 for i = parse(Int, ARGS[1])
     global dense_coefs
     for x = (i-1):-1:0
         for y = (i-1):-1:0
-            for z = (i-1):-1:0
-                dense_coefs[1+x,1+y,1+z] = 0
-                dense_coefs[1+x,1+y,9-z] = 0
-                dense_coefs[1+x,9-y,1+z] = 0
-                dense_coefs[1+x,9-y,9-z] = 0
-                dense_coefs[9-x,1+y,1+z] = 0
-                dense_coefs[9-x,1+y,9-z] = 0
-                dense_coefs[9-x,9-y,1+z] = 0
-                dense_coefs[9-x,9-y,9-z] = 0
-            end
+                dense_coefs[1+x,1+y] = 0
+                dense_coefs[1+x,9-y] = 0
+                dense_coefs[9-x,1+y] = 0
+                dense_coefs[9-x,9-y] = 0
+
         end
     end
     @show sum(dense_coefs .==1)/729
@@ -44,7 +39,6 @@ for i = parse(Int, ARGS[1])
     data = CreateData(dx,dy,dz)
 
     t_steps = 16
-    gpu_out = ApplyFFTstencil(st_inst1, data, t_steps)
     gpu_out = ApplyStencil(st_inst1, data, t_steps)
     CUDA.cuProfilerStart()
     NVTX.@range "standard" begin

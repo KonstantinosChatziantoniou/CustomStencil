@@ -28,10 +28,10 @@ function k_zeroing_2d(data, offx, offy)
     dx = (blockIdx().x-1)*blockDim().x + threadIdx().x
     dy = threadIdx().y
     if dx <= sx && dy <= offy
-        data[dx, end-dy+1] = 0
+        @inbounds data[dx, end-dy+1] = 0
     end
     if dx <= sy && dy <= offx
-        data[end-dy+1, dx] = 0
+        @inbounds data[end-dy+1, dx] = 0
     end
     return nothing
 end
@@ -57,9 +57,9 @@ function k_elem_mul_2d!(A, B)
     if tx > sx || ty > sy
         return nothing
     end
-    a = A[tx,ty]
-    b = B[tx,ty]
-    A[tx,ty] = a*b
+    @inbounds a = A[tx,ty]
+    @inbounds b = B[tx,ty]
+    @inbounds A[tx,ty] = a*b
     return nothing
 end
 
@@ -99,10 +99,17 @@ end
 
 function fft_stencil_2d(data, template, t_steps=1)
     # template is a 2d square array
-    r = (size(template,1)-1)÷2
+    r2 = size(template,1)
+    r = 32
+    while r < r2
+        r += 32
+    end
+    r = r + 1
+    print(template)
+    print((size(data)))
     dx,dy = size(data)
-    padded_data = PaddedView(0, data, (1:dx+2r, 1:dy+2r), (1:dx,1:dy))
-    padded_template = PaddedView(0, template, (1:dx+2r, 1:dy+2r), (1:2r+1,1:2r+1))
+    padded_data = PaddedView(0, data, (1:dx+r-1, 1:dy+r-1), (1:dx,1:dy))
+    padded_template = PaddedView(0, template, (1:dx+r-1, 1:dy+r-1,), (1:r2,1:r2))
     ## Initial Upload
     fd = CuArray{CUDA.cuFloatComplex}(padded_data)
     ft = CuArray{CUDA.cuFloatComplex}(padded_template)
@@ -112,16 +119,7 @@ function fft_stencil_2d(data, template, t_steps=1)
     elem_mul_2d!(fd,ft)
     ## Time Loop
     CUFFT.ifft!(fd)
-    cu_offset_result_2d(fd, temp, r,r)
-    cmplx_to_real_2d!(temp)
-    fd,temp = temp,fd
-    for t = 2:t_steps
-        CUFFT.fft!(fd)
-        elem_mul_2d!(fd,ft)
-        CUFFT.ifft!(fd)
-        cu_offset_result_2d(fd, temp, r,r)
-        cmplx_to_real_2d!(temp)
-        fd,temp = temp,fd
-    end
-    return view(real(Array(fd)), 1:dx, 1:dy)
+    r2 = r2÷2 + 1
+    rn = r2:(r2+dx-1)
+    return real(Array(fd))[rn,rn]
 end
