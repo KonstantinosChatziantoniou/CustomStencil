@@ -62,7 +62,7 @@ function bench(st_insts)
         ms2 -= 1
         ms3 = 48÷r
         ms3 -= 1
-        println("steps per radius" ,r, ms1,ms2,ms3)
+        println("steps per radius" ,r, " ", ms1, " ", ms2, " ",ms3)
         NVTX.@range "r$(i.max_radius) 3" begin
             gpu_out = ApplyFFTstencil(i, data, t_steps, ms3)
         end
