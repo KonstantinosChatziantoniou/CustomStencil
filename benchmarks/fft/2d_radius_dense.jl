@@ -35,6 +35,7 @@ function warmup(st_insts)
     t_steps = 1
 
     gpu_out = ApplyFFTstencil(st_insts[1], data, t_steps)
+    gpu_out = ApplyStencil(st_insts[1], data, 16)
 end
 warmup(st_insts)
 
@@ -67,6 +68,9 @@ function bench(st_insts)
 
         NVTX.@range "r$(i.max_radius) 2" begin
             gpu_out = ApplyFFTstencil(i, data, t_steps, ms2)
+        end
+        NVTX.@range "r$(i.max_radius) standard" begin
+            gpu_out = ApplyStencil(i, data, 16)
         end
     end
 end
