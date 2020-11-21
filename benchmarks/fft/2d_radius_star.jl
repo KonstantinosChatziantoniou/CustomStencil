@@ -7,8 +7,8 @@ for i in [1 2 4 8 16]
     global st_insts
     coefs = round.([1/j for j = 1:(i+1)],digits=4)
     star_stencil = def_stencil_expression(:(c[0]D[x,y,z] + @sum(i, 1,$i, c[i]*(
-                D[x+i,y,z] + D[x,y+i,z] + D[x,y,z+i] +
-                D[x-i,y,z] + D[x,y-i,z] + D[x,y,z-i]))))
+                D[x+i,y,z] + D[x,y+i,z]+
+                D[x-i,y,z] + D[x,y-i,z]))))
 
     st_def = CreateStencilDefinition(star_stencil, coefs)
     bdim = 32

@@ -7,18 +7,16 @@ include("../../misc/cpu_stencils.jl")
 
 ##
 
-dense_coefs = ones(9,9,9)
+for i = parse(Int,ARGS[1])
 
-for i = parse(Int, ARGS[1])
+    star_coefs = zeros(Float64, 9,9,9)
+    star_coefs[1:9,5,5] .= 1
+    star_coefs[5,1:9,5] .= 1
 
-
-    dense_coefs = zeros(9,9)
-    dense_coefs[1:9,5] .= 1
-    dense_coefs[5,1:9] .= 1
-    d = (5-i:5+i)
-    dense_coefs[d,d] .= 1
-    @show sum(dense_coefs .==1)/729
-    st_def = CreateStencilDefinition(dense_coefs)
+    d = 5-i:5+i
+    star_coefs[d,d,5] .= 1
+    @show sum(star_coefs .== 1)/81
+    st_def = CreateStencilDefinition(star_coefs)
     bdim = 32
     if length(ARGS) == 2
         bdim = 16
