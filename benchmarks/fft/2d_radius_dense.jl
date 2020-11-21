@@ -3,7 +3,7 @@ include("../../misc/misc.jl")
 include("../../misc/cpu_stencils.jl")
 ## Star Stencil definition with radius = 4
 st_insts = []
-for i in [1 2 4 8]
+for i in [1 4 8 16]
     global st_insts
     coefs = round.([1/j for j = 1:(i+1)],digits=4)
     star_stencil = def_stencil_expression(:(@sum(i,$(-i), $(i),
@@ -58,6 +58,10 @@ function bench(st_insts)
         r = i.max_radius
         ms1 = 64÷r
         ms2 = 32÷r
+        ms3 = 48÷r
+        NVTX.@range "r$(i.max_radius) 3" begin
+            gpu_out = ApplyFFTstencil(i, data, t_steps, ms3)
+        end
         NVTX.@range "r$(i.max_radius) 0" begin
             gpu_out = ApplyFFTstencil(i, data, t_steps)
         end

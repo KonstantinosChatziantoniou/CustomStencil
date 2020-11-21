@@ -58,6 +58,10 @@ function bench(st_insts)
         r = i.max_radius
         ms1 = 64÷r
         ms2 = 32÷r
+        ms3 = 48÷r
+        NVTX.@range "r$(i.max_radius) 3" begin
+            gpu_out = ApplyFFTstencil(i, data, t_steps, ms3)
+        end
         NVTX.@range "r$(i.max_radius) 0" begin
             gpu_out = ApplyFFTstencil(i, data, t_steps)
         end
