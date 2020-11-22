@@ -28,8 +28,8 @@ for i = parse(Int,ARGS[1])
     st_inst1 = NewStencilInstance(st_def, bdim=bdim, m_step=false)
     println(st_inst1.kernel_expr)
     radius = 4
-    nx = 6
-    ny = 6
+    nx = 12
+    ny = 12
     nz = 0
     dx = 1<<(nx)
     dy = 1<<(ny)
